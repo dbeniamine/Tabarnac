@@ -11,6 +11,17 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <libelf/libelf.h>
+#include <libelf/gelf.h>
+
+
 #include "pin.H"
 
 const int MAXTHREADS = 1024;
@@ -329,11 +340,14 @@ VOID mythread(VOID * arg)
 	}
 }
 
+//retrieve structures names address and size
+int getStructs(const char* file);
 
 VOID binName(IMG img, VOID *v)
 {
 	if (IMG_IsMainExecutable(img))
 		img_name = basename(IMG_Name(img).c_str());
+    getStructs(IMG_Name(img).c_str());
 }
 
 
@@ -380,4 +394,107 @@ int main(int argc, char *argv[])
 	PIN_AddFiniFunction(Fini, 0);
 
 	PIN_StartProgram();
+}
+
+/*
+ * The following function is an adaptation of the libelf-howto.c from:
+ * http://em386.blogspot.com
+ *
+ */
+
+#define ERR -1
+
+int getStructs(const char* file)
+{
+    Elf *elf;                       /* Our Elf pointer for libelf */
+    Elf_Scn *scn=NULL;                   /* Section Descriptor */
+    Elf_Data *edata=NULL;                /* Data Descriptor */
+    GElf_Sym sym;			/* Symbol */
+    GElf_Shdr shdr;                 /* Section Header */
+
+    ofstream f;
+	char fname[255];
+    if(basename(file)!=img_name)
+        return -1;
+
+	sprintf(fname, "%s.structs.csv", img_name.c_str());
+
+	f.open(fname);
+
+    f << "name,start,sz" << endl;
+
+    int fd; 		// File Descriptor
+    char *base_ptr;		// ptr to our object in memory
+    struct stat elf_stats;	// fstat struct
+    cout << "Retrieving data structures from file "<< file << endl;
+
+    if((fd = open(file, O_RDONLY)) == ERR)
+    {
+        cerr << "couldnt open" << file << endl;
+        return ERR;
+    }
+
+    if((fstat(fd, &elf_stats)))
+    {
+        cerr << "could not fstat" << file << endl;
+        close(fd);
+        return ERR;
+    }
+
+    if((base_ptr = (char *) malloc(elf_stats.st_size)) == NULL)
+    {
+        cerr << "could not malloc" << endl;
+        close(fd);
+        return ERR;
+    }
+
+    if((read(fd, base_ptr, elf_stats.st_size)) < elf_stats.st_size)
+    {
+        cerr << "could not read" << file << endl;
+        free(base_ptr);
+        close(fd);
+        return ERR;
+    }
+
+    /* Check libelf version first */
+    if(elf_version(EV_CURRENT) == EV_NONE)
+    {
+        cerr << "WARNING Elf Library is out of date!" << endl;
+    }
+
+    elf = elf_begin(fd, ELF_C_READ, NULL);	// Initialize 'elf' pointer to our file descriptor
+
+    elf = elf_begin(fd, ELF_C_READ, NULL);
+
+    int symbol_count;
+    int i;
+
+    while((scn = elf_nextscn(elf, scn)) != NULL)
+    {
+        gelf_getshdr(scn, &shdr);
+        // Get the symbol table
+        if(shdr.sh_type == SHT_SYMTAB)
+        {
+            // edata points to our symbol table
+            edata = elf_getdata(scn, edata);
+            // how many symbols are there? this number comes from the size of
+            // the section divided by the entry size
+            symbol_count = shdr.sh_size / shdr.sh_entsize;
+            // loop through to grab all symbols
+            for(i = 0; i < symbol_count; i++)
+            {
+                // libelf grabs the symbol data using gelf_getsym()
+                gelf_getsym(edata, i, &sym);
+                // Keep only objects big enough to be data structures
+                if(ELF32_ST_TYPE(sym.st_info)==STT_OBJECT &&
+                        sym.st_size > sizeof(double))
+                {
+                    f << elf_strptr(elf, shdr.sh_link, sym.st_name) <<
+                        "," << sym.st_value << "," << sym.st_size << endl;
+                }
+            }
+        }
+    }
+    f.close();
+    return 0;
 }

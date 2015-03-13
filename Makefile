@@ -56,7 +56,7 @@ endif
 include $(CONFIG_ROOT)/makefile.config
 
 TOOL_CXXFLAGS += -Wall -g -std=c++0x -Wno-error
-TOOL_LDFLAGS += -Wl,-rpath,/opt/pin/intel64/runtime
+TOOL_LDFLAGS += -Wl,-rpath,/opt/pin/intel64/runtime -lelf
 
 
 TEST_TOOL_ROOTS := numalize
