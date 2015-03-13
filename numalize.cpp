@@ -346,8 +346,10 @@ int getStructs(const char* file);
 VOID binName(IMG img, VOID *v)
 {
 	if (IMG_IsMainExecutable(img))
+    {
 		img_name = basename(IMG_Name(img).c_str());
-    getStructs(IMG_Name(img).c_str());
+        getStructs(IMG_Name(img).c_str());
+    }
 }
 
 
@@ -414,8 +416,6 @@ int getStructs(const char* file)
 
     ofstream f;
 	char fname[255];
-    if(basename(file)!=img_name)
-        return -1;
 
 	sprintf(fname, "%s.structs.csv", img_name.c_str());
 
