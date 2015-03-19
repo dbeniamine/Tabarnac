@@ -413,6 +413,7 @@ int getStructs(const char* file)
     Elf_Data *edata=NULL;                /* Data Descriptor */
     GElf_Sym sym;			/* Symbol */
     GElf_Shdr shdr;                 /* Section Header */
+    unsigned int minsz=getpagesize();
 
     ofstream f;
 	char fname[255];
@@ -420,6 +421,7 @@ int getStructs(const char* file)
 	sprintf(fname, "%s.structs.csv", img_name.c_str());
 
 	f.open(fname);
+
 
     f << "name,start,sz" << endl;
 
@@ -487,7 +489,7 @@ int getStructs(const char* file)
                 gelf_getsym(edata, i, &sym);
                 // Keep only objects big enough to be data structures
                 if(ELF32_ST_TYPE(sym.st_info)==STT_OBJECT &&
-                        sym.st_size > sizeof(double))
+                        sym.st_size >= minsz)
                 {
                     f << elf_strptr(elf, shdr.sh_link, sym.st_name) <<
                         "," << sym.st_value << "," << sym.st_size << endl;
