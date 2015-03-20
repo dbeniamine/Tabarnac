@@ -1,0 +1,222 @@
+Numalize plot visualization
+=========================
+
+This scripts gives a fiew visualisation of numalize trace files, it will be
+replaced by a framesoc tool in a near future.
+
+```{r Parsing, echo=FALSE}
+#Parse csv files
+library(ggplot2)
+library(plyr)
+library(stringr)
+# The palette with grey:
+#cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+base=paste(path,"/",name, sep="")
+structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+structs$end <- rowSums(structs[,2:3])
+structs <- rbind(structs,c("Others",0,0,0))
+structs$sz <- NULL
+acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+acc$total  <- rowSums(acc[,-1:-2])
+```
+```{r RetrievingPageStructMapping, echo=FALSE}
+# Retrieve page / structure mapping
+snames=c()
+for(page in acc$addr)
+{
+    addr=(2^12)*page
+    found <- F
+    for(i in 1:nrow(structs))
+    {
+        if( (addr >= structs[i,]$start)  && (addr < structs[i,]$end))
+        {
+            snames <- c(snames, structs[i,]$name)
+            found <- T
+            break
+        }
+    }
+    if(!found)
+    {
+        snames <- c(snames, "Others")
+    }
+}
+acc$struct <- snames
+acc$addr <- NULL
+acc$firstacc <- NULL
+remove(addr)
+remove(base)
+remove(found)
+remove(page)
+remove(snames)
+remove(i)
+```
+```{r GenerateStructData, echo=FALSE}
+# Construct the new dataframe
+structsStats <- c()
+for(s in structs$name)
+{
+    sacc <- subset(acc, acc$struct==s)
+    sacc$struct <- NULL
+    sum <- data.frame(colSums(sacc))
+    for(i in 1:nrow(sum))
+    {
+        structsStats <- rbind(structsStats,c(s,rownames(sum)[i],sum[i,]))
+    }
+}
+remove(sacc)
+remove(structs)
+remove(sum)
+remove(acc)
+remove(s)
+remove(i)
+
+structsStats <- data.frame(structsStats)
+colnames(structsStats) <- c("Struct", "Thread", "NbAccess")
+structsStats <- transform(structsStats, NbAccess=as.numeric(as.character(NbAccess)))
+# Add the sums by threads
+sums <- ddply(structsStats[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
+sums$Struct <- rep("total", nrow(sums))
+structsStats <- rbind(structsStats,sums)
+# Remove temporary variables
+remove(sums)
+```
+```{r multiplotfunction, echo=FALSE}
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+    library(grid)
+
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+
+    numPlots = length(plots)
+
+    # If layout is NULL, then use 'cols' to determine layout
+    if (is.null(layout)) {
+        # Make the panel
+        # ncol: Number of columns of plots
+        # nrow: Number of rows needed, calculated from # of cols
+        layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                         ncol = cols, nrow = ceiling(numPlots/cols))
+    }
+
+    if (numPlots==1) {
+        print(plots[[1]])
+    } else {
+        # Set up the page
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+        # Make each plot, in the correct location
+        for (i in 1:numPlots) {
+            # Get the i,j matrix positions of the regions that contain this subplot
+            matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+            print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                            layout.pos.col = matchidx$col))
+        }
+    }
+}
+```
+```{r ThreadPlots, echo=FALSE}
+th <- subset(structsStats, structsStats$Thread!="total")
+plots <- list()
+plotnames  <- list("Access by threads", "Total access by threads", "Access by structure", "Total access by structure")
+# By structure
+plots[[1]] <- ggplot(subset(th, th$Struct!="total") ,aes(x=Thread,y=NbAccess,fill=Struct))
+plots[[1]] <- plots[[1]] + geom_bar(position=position_dodge(.9), stat="identity")
+#plots[[1]] <- plots[[1]] + scale_fill_manual(values=cbPalette)
+plots[[1]] <- plots[[1]] + ggtitle(plotnames[[1]])
+# Total by threads
+plots[[2]] <- ggplot(subset(th, th$Struct=="total") ,aes(x=Thread,y=NbAccess,fill=Struct))
+plots[[2]] <- plots[[2]] + geom_bar(position=position_dodge(.9), stat="identity")
+#plots[[2]] <- plots[[2]] + scale_fill_manual(values=cbPalette)
+plots[[2]] <- plots[[2]] + ggtitle(plotnames[[2]])
+plots[[2]] <- plots[[2]] + theme(legend.position="none")
+remove(th)
+```
+```{r StructsPlots, echo=FALSE}
+st <- subset(structsStats, structsStats$Struct!="total")
+# By structure
+plots[[3]] <- ggplot(subset(st, st$Thread!="total") ,aes(x=Struct,y=NbAccess,fill=Thread))
+plots[[3]] <- plots[[3]] + geom_bar(position=position_dodge(.9), stat="identity")
+#plots[[3]] <- plots[[3]] + scale_fill_manual(values=cbPalette)
+plots[[3]] <- plots[[3]] + ggtitle(plotnames[[3]])
+# Total by structure
+plots[[4]] <- ggplot(subset(st, st$Thread=="total") ,aes(x=Struct,y=NbAccess,fill=Thread))
+plots[[4]] <- plots[[4]] + geom_bar(position=position_dodge(.9), stat="identity")
+#plots[[4]] <- plots[[4]] + scale_fill_manual(values=cbPalette)
+plots[[4]] <- plots[[4]] + ggtitle(plotnames[[4]])
+plots[[4]] <- plots[[4]] + theme(legend.position="none")
+remove(st)
+remove(structsStats)
+```
+If there is some R warning, you should check the arguments you gave to the
+script and restart.
+
+By thread view
+--------------
+
+The first view shows the number of access done by each thread on each
+structures and the total amount of access by threads.
+
++ Memory Imbalance
++ Thread-data affinity
+
+```{r DisplayThread, echo=FALSE, fig.height=7, fig.width=12}
+multiplot(plotlist=plots[1:2],cols=2)
+if(save=="T")
+{
+    ggsave(filename=paste(path,"/",name,"_summary.eps", sep=""))
+}
+```
+
+By Structure view
+-----------------
+
+This view shows the same data but from the structure point of view.
+
++ Important structures
++ Thread-data affinity
+
+
+```{r DisplayStruct, echo=FALSE, fig.height=7, fig.width=12}
+multiplot(plotlist=plots[3:4],cols=2)
+if(save=="T")
+{
+    ggsave(filename=paste(path,"/",name,"_summary.eps", sep=""))
+}
+```
+
+Individual plots
+----------------
+
+The same plots shown individually:
+
+```{r IndividualPlots, echo=F}
+for(i in 1:length(plots))
+{
+    show(plots[[i]])
+    if(save=="T")
+    {
+        ggsave(paste(path, "/",name,"_",
+                     str_replace_all(plotnames[[i]], " ", "_"),".eps", sep=""))
+    }
+}
+#remove(cbPalette)
+remove(i)
+remove(multiplot)
+remove(plots)
+remove(plotnames)
+remove(save)
+remove(name)
+remove(path)
+#ls()
+```
