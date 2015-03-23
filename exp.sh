@@ -4,14 +4,12 @@ then
     echo "Usage $0 exp_name"
     exit 1
 fi
-NAS=$HOME/NAS-origin/bin
+NAS=$HOME/NPB3.3-OMP/bin
 NUMALIZE=$HOME/numalize
 EXP_DIR=$1
 CMDLINE="$0 $@"
 START_TIME=$(date +%y%m%d_%H%M%S)
 OUTPUT=$EXP_DIR/exp.log
-exec > >(tee $OUTPUT) 2>&1
-dumpInfos
 function testAndExitOnError
 {
     err=$?
@@ -54,15 +52,18 @@ function dumpInfos
     cp -v *.rmd  $EXP_DIR/
     cp -v Makefile  $EXP_DIR/
 }
-for f in $(\ls $NAS)
+mkdir -p $EXP_DIR
+exec > >(tee $OUTPUT) 2>&1
+dumpInfos
+for f in $(\ls $NAS | grep "\.x" )
 do
     cd $EXP_DIR
     mkdir $f
     cd $f
-	echo $NUMALIZE/run.sh -p -- $NAS/$f
+	$NUMALIZE/run.sh -p -- $NAS/$f
     testAndExitOnError "Benchmark $f"
-    cd $NUMALIZE/plotgen
-    ./plotter.sh $EXP_DIR/$f $f
+    #cd $NUMALIZE/plotgen
+    #./plotter.sh $EXP_DIR/$f $f
 done
 echo "thermal_throttle infos :"
 cat /sys/devices/system/cpu/cpu0/thermal_throttle/*

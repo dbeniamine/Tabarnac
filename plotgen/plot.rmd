@@ -10,7 +10,6 @@ library(ggplot2)
 library(plyr)
 library(stringr)
 # The palette with grey:
-#cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 base=paste(path,"/",name, sep="")
 structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 structs$end <- rowSums(structs[,2:3])
@@ -41,8 +40,6 @@ for(page in acc$addr)
     }
 }
 acc$struct <- snames
-acc$addr <- NULL
-acc$firstacc <- NULL
 remove(addr)
 remove(base)
 remove(found)
@@ -57,6 +54,8 @@ for(s in structs$name)
 {
     sacc <- subset(acc, acc$struct==s)
     sacc$struct <- NULL
+    sacc$addr <- NULL
+    sacc$firstacc <- NULL
     sum <- data.frame(colSums(sacc))
     for(i in 1:nrow(sum))
     {
@@ -66,7 +65,6 @@ for(s in structs$name)
 remove(sacc)
 remove(structs)
 remove(sum)
-remove(acc)
 remove(s)
 remove(i)
 
@@ -132,35 +130,26 @@ plotnames  <- list("Access by threads", "Total access by threads", "Access by st
 # By structure
 plots[[1]] <- ggplot(subset(th, th$Struct!="total") ,aes(x=Thread,y=NbAccess,fill=Struct))
 plots[[1]] <- plots[[1]] + geom_bar(position=position_dodge(.9), stat="identity")
-#plots[[1]] <- plots[[1]] + scale_fill_manual(values=cbPalette)
 plots[[1]] <- plots[[1]] + ggtitle(plotnames[[1]])
 # Total by threads
 plots[[2]] <- ggplot(subset(th, th$Struct=="total") ,aes(x=Thread,y=NbAccess,fill=Struct))
 plots[[2]] <- plots[[2]] + geom_bar(position=position_dodge(.9), stat="identity")
-#plots[[2]] <- plots[[2]] + scale_fill_manual(values=cbPalette)
 plots[[2]] <- plots[[2]] + ggtitle(plotnames[[2]])
 plots[[2]] <- plots[[2]] + theme(legend.position="none")
 remove(th)
-```
-```{r Verifications}
-show("There is the result data frame for verification purpose")
-show(structsStats)
 ```
 ```{r StructsPlots, echo=FALSE}
 st <- subset(structsStats, structsStats$Struct!="total")
 # By structure
 plots[[3]] <- ggplot(subset(st, st$Thread!="total") ,aes(x=Struct,y=NbAccess,fill=Thread))
 plots[[3]] <- plots[[3]] + geom_bar(position=position_dodge(.9), stat="identity")
-#plots[[3]] <- plots[[3]] + scale_fill_manual(values=cbPalette)
 plots[[3]] <- plots[[3]] + ggtitle(plotnames[[3]])
 # Total by structure
 plots[[4]] <- ggplot(subset(st, st$Thread=="total") ,aes(x=Struct,y=NbAccess,fill=Thread))
 plots[[4]] <- plots[[4]] + geom_bar(position=position_dodge(.9), stat="identity")
-#plots[[4]] <- plots[[4]] + scale_fill_manual(values=cbPalette)
 plots[[4]] <- plots[[4]] + ggtitle(plotnames[[4]])
 plots[[4]] <- plots[[4]] + theme(legend.position="none")
 remove(st)
-remove(structsStats)
 ```
 If there is some R warning, you should check the arguments you gave to the
 script and restart.
@@ -216,7 +205,49 @@ for(i in 1:length(plots))
                      str_replace_all(plotnames[[i]], " ", "_"),".eps", sep=""))
     }
 }
-#remove(cbPalette)
+```
+
+Distribution inside Structures
+------------------------------
+
+```{r Distribution, echo=T}
+acc$firstacc <- NULL
+plotname <- "Access distribution by thread for structure"
+# For each structures
+for(str in unique(acc$struct))
+{
+    sacc <- subset(acc, acc$struct==str)
+    sacc$struct <- NULL
+    sacc$total <- NULL
+    # Create a df addr th num access
+    ndf <- c()
+    for(i in 1:nrow(sacc))
+    {
+        for(j in 2:ncol(sacc))
+        {
+            ndf <- rbind(c(sacc[i,1], colnames(sacc)[j],sacc[i,j]),ndf)
+        }
+    }
+    ndf <- data.frame(ndf)
+    colnames(ndf) <- c("Addr", "Thread", "Density")
+    ndf <- transform(ndf, Addr=as.numeric(as.character(Addr)), Density=as.numeric(as.character(Density)))
+    # Plot the distribution
+    p <- ggplot(ndf,aes(x=Addr, y=Density) ) + geom_line(aes(linetype=Thread, colour=Thread))
+    p <- p + geom_point(aes(shape=Thread))
+    p <- p + scale_colour_grey()
+    p <- p + ggtitle(paste(plotname, str)) + xlab("Address") + ylab("Number of Access")
+    show(p)
+    ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".eps", sep=""))
+}
+remove(j)
+remove(ndf)
+remove(p)
+remove(plotname)
+remove(sacc)
+remove(str)
+```
+
+```{r Cleaning,echo=F}
 remove(i)
 remove(multiplot)
 remove(plots)
@@ -224,5 +255,7 @@ remove(plotnames)
 remove(save)
 remove(name)
 remove(path)
-#ls()
+remove(structsStats)
+remove(acc)
+ls()
 ```
