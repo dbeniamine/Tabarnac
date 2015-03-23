@@ -142,6 +142,10 @@ plots[[2]] <- plots[[2]] + ggtitle(plotnames[[2]])
 plots[[2]] <- plots[[2]] + theme(legend.position="none")
 remove(th)
 ```
+```{r Verifications}
+show("There is the result data frame for verification purpose")
+show(structsStats)
+```
 ```{r StructsPlots, echo=FALSE}
 st <- subset(structsStats, structsStats$Struct!="total")
 # By structure
@@ -160,6 +164,8 @@ remove(structsStats)
 ```
 If there is some R warning, you should check the arguments you gave to the
 script and restart.
+
+
 
 By thread view
 --------------

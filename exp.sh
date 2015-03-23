@@ -23,7 +23,7 @@ function testAndExitOnError
 }
 function dumpInfos
 {
-(pwd)
+    pwd
     #Echo start time
     echo "Expe started at $START_TIME"
     #Echo args
@@ -54,11 +54,15 @@ function dumpInfos
     cp -v *.rmd  $EXP_DIR/
     cp -v Makefile  $EXP_DIR/
 }
-cd $EXP_DIR
 for f in $(\ls $NAS)
 do
+    cd $EXP_DIR
+    mkdir $f
+    cd $f
 	echo $NUMALIZE/run.sh -p -- $NAS/$f
     testAndExitOnError "Benchmark $f"
+    cd $NUMALIZE/plotgen
+    ./plotter.sh $EXP_DIR/$f $f
 done
 echo "thermal_throttle infos :"
 cat /sys/devices/system/cpu/cpu0/thermal_throttle/*
