@@ -210,7 +210,10 @@ for(i in 1:length(plots))
 Distribution inside Structures
 ------------------------------
 
-```{r Distribution, echo=T}
+This visualisation show for each structure the distribution of access inside
+the structure.
+
+```{r Distribution, echo=F}
 acc$firstacc <- NULL
 plotname <- "Access distribution by thread for structure"
 # For each structures
