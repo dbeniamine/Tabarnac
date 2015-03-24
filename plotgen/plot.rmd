@@ -12,11 +12,19 @@ library(stringr)
 # The palette with grey:
 base=paste(path,"/",name, sep="")
 structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
-structs$end <- rowSums(structs[,2:3])
-structs <- rbind(structs,c("Others",0,0,0))
-structs$sz <- NULL
 acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 acc$total  <- rowSums(acc[,-1:-2])
+```
+```{r StructSizes}
+p <- ggplot(structs, aes(x=name,y=sz, fill=name))
+p <- p + geom_bar(stat="identity")
+p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
+show(p)
+remove(p)
+# Simplify struct representation
+structs$end <- rowSums(structs[,2:3])
+structs$sz <- NULL
+structs <- rbind(structs,c("Others",0,0,0))
 ```
 ```{r RetrievingPageStructMapping, echo=FALSE}
 # Retrieve page / structure mapping
@@ -213,36 +221,27 @@ Distribution inside Structures
 This visualisation show for each structure the distribution of access inside
 the structure.
 
-```{r Distribution, echo=F}
+```{r Distribution, echo=T}
 acc$firstacc <- NULL
+acc <- subset(acc, acc$struct!="Others")
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
 {
+    # Create a df addr th num access
     sacc <- subset(acc, acc$struct==str)
     sacc$struct <- NULL
     sacc$total <- NULL
-    # Create a df addr th num access
-    ndf <- c()
-    for(i in 1:nrow(sacc))
-    {
-        for(j in 2:ncol(sacc))
-        {
-            ndf <- rbind(c(sacc[i,1], colnames(sacc)[j],sacc[i,j]),ndf)
-        }
-    }
-    ndf <- data.frame(ndf)
-    colnames(ndf) <- c("Addr", "Thread", "Density")
-    ndf <- transform(ndf, Addr=as.numeric(as.character(Addr)), Density=as.numeric(as.character(Density)))
-    # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr, y=Density) ) + geom_line(aes(linetype=Thread, colour=Thread))
+    ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
+    colnames(ndf) <- c("Addr", "Value","Thread")
+    #   # Plot the distribution
+    p <- ggplot(ndf,aes(x=Addr, y=Value) ) + geom_line(aes(linetype=Thread, colour=Thread))
     p <- p + geom_point(aes(shape=Thread))
     p <- p + scale_colour_grey()
     p <- p + ggtitle(paste(plotname, str)) + xlab("Address") + ylab("Number of Access")
     show(p)
     ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".eps", sep=""))
 }
-remove(j)
 remove(ndf)
 remove(p)
 remove(plotname)
