@@ -29,6 +29,7 @@ structs <- rbind(structs,c("Others",0,0,0))
 ```{r RetrievingPageStructMapping, echo=F}
 # Retrieve page / structure mapping
 snames=c()
+structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numeric(as.character(end)))
 structs <- structs[order(structs$start),]
 # Here we know that structs and acc are sorted by adresse, which ease the search
 i <- 2
