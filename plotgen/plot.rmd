@@ -15,7 +15,7 @@ structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec
 acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 acc$total  <- rowSums(acc[,-1:-2])
 ```
-```{r StructSizes}
+```{r StructSizes, echo=F}
 p <- ggplot(structs, aes(x=name,y=sz, fill=name))
 p <- p + geom_bar(stat="identity")
 p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
@@ -26,31 +26,40 @@ structs$end <- rowSums(structs[,2:3])
 structs$sz <- NULL
 structs <- rbind(structs,c("Others",0,0,0))
 ```
-```{r RetrievingPageStructMapping, echo=FALSE}
+```{r RetrievingPageStructMapping, echo=F}
 # Retrieve page / structure mapping
 snames=c()
+structs <- structs[order(structs$start),]
+# Here we know that structs and acc are sorted by adresse, which ease the search
+i <- 2
 for(page in acc$addr)
 {
     addr=(2^12)*page
-    found <- F
-    for(i in 1:nrow(structs))
+    if(addr < structs[2,]$start)
     {
-        if( (addr >= structs[i,]$start)  && (addr < structs[i,]$end))
-        {
-            snames <- c(snames, structs[i,]$name)
-            found <- T
-            break
-        }
+        # Addr is before structs
+        snames <- c(snames,structs$name[1])
     }
-    if(!found)
+    else
     {
-        snames <- c(snames, "Others")
+        # Search for the good structures
+        while( !((addr >= structs[i,]$start)  && (addr < structs[i,]$end)))
+        {
+            if(i==1)
+                break
+            i <- i+1
+            if(i > length(structs$name))
+            {
+                i <- 1 # Unknown struc
+                break
+            }
+        }
+        snames <- c(snames, structs$name[i])
     }
 }
 acc$struct <- snames
 remove(addr)
 remove(base)
-remove(found)
 remove(page)
 remove(snames)
 remove(i)
@@ -221,7 +230,7 @@ Distribution inside Structures
 This visualisation show for each structure the distribution of access inside
 the structure.
 
-```{r Distribution, echo=T}
+```{r Distribution, echo=F}
 acc$firstacc <- NULL
 acc <- subset(acc, acc$struct!="Others")
 plotname <- "Access distribution by thread for structure"
@@ -249,7 +258,7 @@ remove(sacc)
 remove(str)
 ```
 
-```{r Cleaning,echo=F}
+```{r Cleaning, echo=F}
 remove(i)
 remove(multiplot)
 remove(plots)
@@ -259,5 +268,5 @@ remove(name)
 remove(path)
 remove(structsStats)
 remove(acc)
-ls()
+#ls()
 ```
