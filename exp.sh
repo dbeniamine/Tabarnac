@@ -62,10 +62,10 @@ do
     cd $f
 	$NUMALIZE/run.sh -p -- $NAS/$f
     testAndExitOnError "Benchmark $f"
-    #cd $NUMALIZE/plotgen
-    #./plotter.sh $EXP_DIR/$f $f
 done
 echo "thermal_throttle infos :"
 cat /sys/devices/system/cpu/cpu0/thermal_throttle/*
+echo "Generating plots"
+./parseandplot.sh
 END_TIME=$(date +%y%m%d_%H%M%S)
 echo "Expe ended at $END_TIME"
