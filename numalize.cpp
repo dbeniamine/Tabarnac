@@ -18,8 +18,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
 #include <libelf/libelf.h>
 #include <libelf/gelf.h>
+#include <execinfo.h>
 
 
 #include "pin.H"
@@ -343,12 +345,42 @@ VOID mythread(VOID * arg)
 //retrieve structures names address and size
 int getStructs(const char* file);
 
+VOID PREMALLOC(ADDRINT sz)
+{
+    if( (int) sz >= PAGESIZE)
+    {
+        char BUFF[2048];
+        int nbsz=backtrace((void **)&BUFF, (int)(2048/sizeof(void *)));
+        backtrace_symbols_fd((void *const*)BUFF, nbsz, 1);
+        cout << "malloc struct " << "size " << sz << endl;
+    }
+}
+VOID POSTMALLOC(ADDRINT ret)
+{
+    cout << "malloc returned " << ret << endl;
+}
+
 VOID binName(IMG img, VOID *v)
 {
 	if (IMG_IsMainExecutable(img))
     {
 		img_name = basename(IMG_Name(img).c_str());
-        getStructs(IMG_Name(img).c_str());
+    }
+    getStructs(IMG_Name(img).c_str());
+
+    RTN mallocRtn = RTN_FindByName(img, "malloc");
+    if (RTN_Valid(mallocRtn))
+    {
+        RTN_Open(mallocRtn);
+
+        // Instrument malloc() to print the input argument value and the return value.
+        RTN_InsertCall(mallocRtn, IPOINT_BEFORE, (AFUNPTR)PREMALLOC, //IARG_ADDRINT,
+                       IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+                       IARG_END);
+        RTN_InsertCall(mallocRtn, IPOINT_AFTER, (AFUNPTR)POSTMALLOC,
+                       IARG_FUNCRET_EXITPOINT_VALUE, IARG_END);
+
+        RTN_Close(mallocRtn);
     }
 }
 
@@ -365,8 +397,11 @@ VOID Fini(INT32 code, VOID *v)
 }
 
 
+
+
 int main(int argc, char *argv[])
 {
+    PIN_InitSymbols();
 	if (PIN_Init(argc,argv)) return 1;
 
 	PAGESIZE = log2(sysconf(_SC_PAGESIZE));
@@ -390,6 +425,8 @@ int main(int argc, char *argv[])
 		INS_AddInstrumentFunction(trace_memory_comm, 0);
 		commmap.reserve(100*1000*1000);
 	}
+
+    
 
 	IMG_AddInstrumentFunction(binName, 0);
 	PIN_AddThreadStartFunction(ThreadStart, 0);
