@@ -14,12 +14,22 @@ base=paste(path,"/",name, sep="")
 structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 acc$total  <- rowSums(acc[,-1:-2])
+# TODO remove me, usefull for matrix
+#acc$T0 <- acc$T1
+#acc$T1 <- acc$T2
+#acc$T2 <- acc$T3
+#acc$T3 <- acc$T4
+#acc$T4 <- NULL
 ```
 ```{r StructSizes, echo=F}
 p <- ggplot(structs, aes(x=name,y=sz, fill=name))
 p <- p + geom_bar(stat="identity")
 p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
+p <- p + theme_bw()
+p <- p + theme(legend.position="none")
+p <- p + scale_fill_grey()
 show(p)
+ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
 remove(p)
 # Simplify struct representation
 structs$end <- rowSums(structs[,2:3])
@@ -46,6 +56,7 @@ for(page in acc$addr)
         # Search for the good structures
         while( !((addr >= structs[i,]$start)  && (addr < structs[i,]$end)))
         {
+            #show(paste("addr",addr,"st",structs[i,]$start,"end",structs[i,]$end))
             if(i==1)
                 break
             i <- i+1
@@ -59,6 +70,11 @@ for(page in acc$addr)
     }
 }
 acc$struct <- snames
+#TODO remove me
+#acc <- subset(acc, acc$struct!="BT")
+#acc <- subset(acc, acc$struct!="D")
+#structs <- subset(structs, structs$name!="BT")
+#structs <- subset(structs, structs$name!="D")
 remove(addr)
 remove(base)
 remove(page)
@@ -150,7 +166,7 @@ plots[[1]] <- ggplot(subset(th, th$Struct!="total") ,aes(x=Thread,y=NbAccess,fil
 plots[[1]] <- plots[[1]] + geom_bar(position=position_dodge(.9), stat="identity")
 plots[[1]] <- plots[[1]] + ggtitle(plotnames[[1]])
 # Total by threads
-plots[[2]] <- ggplot(subset(th, th$Struct=="total") ,aes(x=Thread,y=NbAccess,fill=Struct))
+plots[[2]] <- ggplot(subset(th, th$Struct=="total") ,aes(x=Thread,y=NbAccess,fill=Thread))
 plots[[2]] <- plots[[2]] + geom_bar(position=position_dodge(.9), stat="identity")
 plots[[2]] <- plots[[2]] + ggtitle(plotnames[[2]])
 plots[[2]] <- plots[[2]] + theme(legend.position="none")
@@ -158,15 +174,18 @@ remove(th)
 ```
 ```{r StructsPlots, echo=FALSE}
 st <- subset(structsStats, structsStats$Struct!="total")
+st <- subset(st, st$Struct!="Others")
 # By structure
 plots[[3]] <- ggplot(subset(st, st$Thread!="total") ,aes(x=Struct,y=NbAccess,fill=Thread))
 plots[[3]] <- plots[[3]] + geom_bar(position=position_dodge(.9), stat="identity")
 plots[[3]] <- plots[[3]] + ggtitle(plotnames[[3]])
 # Total by structure
-plots[[4]] <- ggplot(subset(st, st$Thread=="total") ,aes(x=Struct,y=NbAccess,fill=Thread))
+plots[[4]] <- ggplot(subset(st, st$Thread=="total") ,aes(x=Struct,y=NbAccess,fill=Struct))
 plots[[4]] <- plots[[4]] + geom_bar(position=position_dodge(.9), stat="identity")
 plots[[4]] <- plots[[4]] + ggtitle(plotnames[[4]])
+plots[[4]] <- plots[[4]] + theme_bw()
 plots[[4]] <- plots[[4]] + theme(legend.position="none")
+plots[[4]] <- plots[[4]] + scale_fill_grey()
 remove(st)
 ```
 If there is some R warning, you should check the arguments you gave to the
@@ -187,7 +206,7 @@ structures and the total amount of access by threads.
 multiplot(plotlist=plots[1:2],cols=2)
 if(save=="T")
 {
-    ggsave(filename=paste(path,"/",name,"_summary.eps", sep=""))
+    ggsave(filename=paste(path,"/",name,"_summary.pdf", sep=""))
 }
 ```
 
@@ -204,7 +223,7 @@ This view shows the same data but from the structure point of view.
 multiplot(plotlist=plots[3:4],cols=2)
 if(save=="T")
 {
-    ggsave(filename=paste(path,"/",name,"_summary.eps", sep=""))
+    ggsave(filename=paste(path,"/",name,"_summary.pdf", sep=""))
 }
 ```
 
@@ -220,7 +239,7 @@ for(i in 1:length(plots))
     if(save=="T")
     {
         ggsave(paste(path, "/",name,"_",
-                     str_replace_all(plotnames[[i]], " ", "_"),".eps", sep=""))
+                     str_replace_all(plotnames[[i]], " ", "_"),".pdf", sep=""))
     }
 }
 ```
@@ -232,6 +251,22 @@ This visualisation show for each structure the distribution of access inside
 the structure.
 
 ```{r Distribution, echo=F}
+# Helper function to identify approximate curve intersections by brute force
+# Function from https://gist.github.com/dsparks/4229410
+intersecDf <- function(odf, str1, str2, addr1, addr2, addr3,val){
+    tdf <- subset(odf, odf$Addr>=addr1)
+    tdf <- subset(tdf, tdf$Addr<=addr2)
+    shade <- data.frame("Addr"=tdf$Addr, "Value"=pmin(
+                                                      subset(tdf$Value, tdf$Thread==str1),subset(tdf$Value, tdf$Thread==str2)))
+    intersec <- data.frame("Addr"=addr3, "Value"=val)
+    shade <- rbind(shade, intersec)
+    shade <- shade[order(shade$Addr),]
+    shade <- rbind(c(addr1,0),shade)
+    shade <- rbind(shade,c(addr2,0))
+
+    return(shade)
+}
+
 acc$firstacc <- NULL
 acc <- subset(acc, acc$struct!="Others")
 plotname <- "Access distribution by thread for structure"
@@ -245,12 +280,32 @@ for(str in unique(acc$struct))
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr, y=Value) ) + geom_line(aes(linetype=Thread, colour=Thread))
-    p <- p + geom_point(aes(shape=Thread))
-    p <- p + scale_colour_grey()
-    p <- p + ggtitle(paste(plotname, str)) + xlab("Address") + ylab("Number of Access")
+    p <- ggplot(ndf,aes(x=Addr, y=Value) ) + geom_line()#aes(linetype=Thread))#, colour=Thread))
+    #p <- p + geom_point(aes(shape=Thread))
+    #p <- p + scale_colour_grey()
+    p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) + xlab("Page number") + ylab("Number of Accesses")
+    p <- p + theme_bw()
+    if(name="lu.S" && str=="flux")
+    {
+        # T0 - T1 intersect
+        overlap <- c("between threads", "between NUMA nodes")
+        shade <-  intersecDf(ndf,"T0","T1",1592, 1595, 1593.68,82700)
+        p <-  p + geom_polygon(data=shade, alpha=.8,aes(fill=overlap[1]))
+        # T1 -  T2 intersect
+        shade <- intersecDf(ndf, "T1", "T2", 1596, 1600, 1598.648,82000)
+        p <-  p + geom_polygon(data=shade, alpha=.8,aes(fill=overlap[2]))
+        # T2 -  T3 intersect
+        shade <- intersecDf(ndf,"T2","T3",1601, 1604, 1602.1,81000)
+        p <-  p + geom_polygon(data=shade, alpha=.8,aes(fill=overlap[1]))
+        p <- p + scale_fill_grey()
+        #p <- p + scale_fill_manual(values=c("grey0", "grey60"))
+        p <- p + guides(fill=guide_legend("Overlap", override.aes=list(alpha=.8)))
+        p <- p + theme(legend.key.width = unit(.7, "cm"),legend.key.width = unit(.7, "cm"))
+    }
+    p <- p + facet_wrap(~Thread, ncol=2)
+    p <- p + theme(legend.position="bottom")
     show(p)
-    ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".eps", sep=""))
+    ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""))
 }
 remove(ndf)
 remove(p)
