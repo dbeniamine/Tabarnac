@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
+#include <tuple>
 #include <unistd.h>
 
 #include <sys/time.h>
@@ -27,6 +28,10 @@
 #include "pin.H"
 
 #define REAL_TID(tid) ((tid)>=2 ? (tid)-1 : (tid))
+#define ACC_T_READ 0
+#define ACC_T_WRITE 1
+
+char TYPE_NAME[2]={'R','W'};
 
 const int MAXTHREADS = 1024;
 int PAGESIZE;
@@ -39,13 +44,11 @@ KNOB<bool> DOCOMM(KNOB_MODE_WRITEONCE, "pintool", "c", "0", "enable comm detecti
 KNOB<bool> DOPAGE(KNOB_MODE_WRITEONCE, "pintool", "p", "0", "enable page usage detection");
 
 
-typedef struct{
+struct{
     string sym;
     ADDRINT sz;
     int ended; // 0 if the malloc is not completed (missing ret val)
-}PartAlloc;
-
-PartAlloc Allocs[MAXTHREADS];
+} Allocs[MAXTHREADS+1];
 
 ofstream fstructStream;
 
@@ -55,7 +58,7 @@ UINT64 comm_matrix[MAXTHREADS][MAXTHREADS]; // comm matrix
 
 unordered_map<UINT64, array<UINT32,2>> commmap; // cache line -> list of tids that previously accesses
 
-array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> pagemap;
+array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> pagemap[2];
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> ftmap;
 
 map<UINT32, UINT32> pidmap; // pid -> tid
@@ -78,7 +81,7 @@ VOID inc_comm(int a, int b)
 VOID do_comm(ADDRINT addr, THREADID tid)
 {
     UINT64 line = addr >> COMMSIZE;
-    tid = tid>=2 ? tid-1 : tid;
+    tid = REAL_TID(tid);
     int sh = 1;
 
     THREADID a = commmap[line][0];
@@ -142,12 +145,12 @@ UINT64 get_tsc()
 #endif
 }
 
-VOID do_numa(ADDRINT addr, THREADID tid)
+VOID do_numa(ADDRINT addr, THREADID tid, ADDRINT type)
 {
     UINT64 page = addr >> PAGESIZE;
     tid=REAL_TID(tid);
 
-    if (pagemap[tid][page]++ == 0)
+    if (pagemap[type][tid][page]++ == 0 && pagemap[(type+1)%2][tid][page]==0)
         ftmap[tid][page] = get_tsc();
 }
 
@@ -167,13 +170,13 @@ VOID trace_memory_comm(INS ins, VOID *v)
 VOID trace_memory_page(INS ins, VOID *v)
 {
     if (INS_IsMemoryRead(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_numa, IARG_MEMORYREAD_EA, IARG_THREAD_ID, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_numa, IARG_MEMORYREAD_EA, IARG_THREAD_ID,IARG_ADDRINT,ACC_T_READ, IARG_END);
 
     if (INS_HasMemoryRead2(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_numa, IARG_MEMORYREAD2_EA, IARG_THREAD_ID, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_numa, IARG_MEMORYREAD2_EA, IARG_THREAD_ID, IARG_ADDRINT,ACC_T_READ,IARG_END);
 
     if (INS_IsMemoryWrite(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_numa, IARG_MEMORYWRITE_EA, IARG_THREAD_ID, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_numa, IARG_MEMORYWRITE_EA, IARG_THREAD_ID, IARG_ADDRINT,ACC_T_WRITE, IARG_END);
 }
 
 
@@ -280,7 +283,7 @@ void print_numa()
 {
     int real_tid[MAXTHREADS+1];
 
-    unordered_map<UINT64, array<UINT64, MAXTHREADS+1>> finalmap;
+    unordered_map<UINT64, array<UINT64, MAXTHREADS+1>> finalmap[2];
     unordered_map<UINT64, pair<UINT64, UINT32>> finalft;
 
     int i = 0;
@@ -308,27 +311,33 @@ void print_numa()
     f << "addr,firstacc";
     for (int i = 0; i<num_threads; i++)
         f << ",T" << i;
-    f << "\n";
+    f << ",Type" << "\n";
 
 
     // determine which thread accessed each page first
     for (int tid = 0; tid<num_threads; tid++) {
-        for (auto it : pagemap[tid]) {
-            finalmap[it.first][tid] = pagemap[tid][it.first];
-            if (finalft[it.first].first == 0 || finalft[it.first].first > ftmap[tid][it.first])
-                finalft[it.first] = make_pair(ftmap[tid][it.first], real_tid[tid]);
+        for(int i=0; i < 2; ++i){
+            for (auto it : pagemap[i][tid]) {
+                //TODO
+                finalmap[i][it.first][tid] = pagemap[i][tid][it.first];
+                if (finalft[it.first].first == 0 || finalft[it.first].first > ftmap[tid][it.first])
+                    finalft[it.first] = make_pair(ftmap[tid][it.first], real_tid[tid]);
+            }
         }
     }
 
     // fix stack and print pages to csv
-    for(auto it : finalmap) {
-        UINT64 pageaddr = fixstack(it.first, real_tid, finalft[it.first].second);
-        f << pageaddr << "," << finalft[it.first].second;
+    for(int i=0; i < 2; ++i)
+    {
+        for(auto it : finalmap[i]) {
+            UINT64 pageaddr = fixstack(it.first, real_tid, finalft[it.first].second);
+            f << pageaddr << "," << finalft[it.first].second;
 
-        for (int i=0; i<num_threads; i++)
-            f << "," << it.second[real_tid[i]];
+            for (int i=0; i<num_threads; i++)
+                f << "," << it.second[real_tid[i]];
 
-        f << "\n";
+            f << ","<< TYPE_NAME[i] << "\n";
+        }
     }
 
     f.close();
