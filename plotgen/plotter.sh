@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO: use getopts
 if [ -z "$1" ] || [ -z "$2" ]
 then
     echo "Usage $0 exp-dir name [save]"
@@ -12,7 +13,12 @@ if [ ! -z "$3" ] && [ $3 == "true" ]
 then
     save=T
 fi
+
+# Generate csv stackmap
+echo "tid,stackmax,stacksize" | cat - "$1/$2"".stackmap" | sed 's/ /,/g' > "$1/$2".stackmap.csv
+
 Rscript -e \
     "require(knitr); path <- '$1'; name <- '$2'; save <-'$save'; knit2html(\"plot.rmd\", output='$1/$2-plots.html')"
+# Clean and copi figures
 rm -rf $1/figure
 mv ./figure $1/

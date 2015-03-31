@@ -4,8 +4,9 @@ Numalize plot visualization
 This scripts gives a fiew visualisation of numalize trace files, it will be
 replaced by a framesoc tool in a near future.
 
-```{r Parsing, echo=FALSE}
+```{r Parsing, echo=T}
 #Parse csv files
+require(methods, quiet=T)
 library(ggplot2)
 library(plyr)
 library(stringr)
@@ -13,15 +14,10 @@ library(stringr)
 base=paste(path,"/",name, sep="")
 structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
-acc$total  <- rowSums(acc[,-1:-2])
-# TODO remove me, usefull for matrix
-#acc$T0 <- acc$T1
-#acc$T1 <- acc$T2
-#acc$T2 <- acc$T3
-#acc$T3 <- acc$T4
-#acc$T4 <- NULL
+acc$total  <- rowSums(acc[,-1:-3])
+stacks<-data.frame(read.csv2(file=paste(base,".stackmap.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 ```
-```{r StructSizes, echo=F}
+```{r StructSizes, echo=T}
 p <- ggplot(structs, aes(x=name,y=sz, fill=name))
 p <- p + geom_bar(stat="identity")
 p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
@@ -36,52 +32,78 @@ structs$end <- rowSums(structs[,2:3])
 structs$sz <- NULL
 structs <- rbind(structs,c("Others",0,0,0))
 ```
-```{r RetrievingPageStructMapping, echo=F}
+```{r RetrievingPageStructMapping, echo=T}
 # Retrieve page / structure mapping
 snames=c()
 structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numeric(as.character(end)))
 structs <- structs[order(structs$start),]
 # Here we know that structs and acc are sorted by adresse, which ease the search
 i <- 2
-for(page in acc$addr)
+show(structs)
+for(page in unique(acc$addr))
 {
     addr=(2^12)*page
-    if(addr < structs[2,]$start)
+    OK <- F
+    while(!OK && i<=nrow(structs))
     {
-        # Addr is before structs
-        snames <- c(snames,structs$name[1])
-    }
-    else
-    {
-        # Search for the good structures
-        while( !((addr >= structs[i,]$start)  && (addr < structs[i,]$end)))
+        show(paste("loop current struct", i))
+        if(addr < structs[i,]$start)
         {
-            #show(paste("addr",addr,"st",structs[i,]$start,"end",structs[i,]$end))
-            if(i==1)
-                break
-            i <- i+1
-            if(i > length(structs$name))
+            #Addr is between two structs
+            OK <- T
+            show(paste(addr,"between structs n°",i-1,i))
+            snames <- c(snames,structs$name[1],structs$name[1])
+        }else
+        {
+            if(addr >= structs[i,]$start && addr < structs[i,]$end)
             {
-                i <- 1 # Unknown struc
-                break
+                # Addr is in the next struct
+                show(paste(addr,"in struct", structs[i,]$name))
+                OK <- T
+                snames <- c(snames, structs$name[i], structs$name[i])
+            }else
+            {
+                #Addr might be in the next struct
+                i <- i+1
             }
         }
-        snames <- c(snames, structs$name[i])
     }
+    if(!OK)
+    {
+        snames <- c(snames,structs$name[1],structs$name[1])
+    }
+    #if(addr < structs[2,]$start)
+    #{
+    #    # Addr is before structs
+    #    snames <- c(snames,structs$name[1],structs$name[1])
+    #}
+    #else
+    #{
+    #    # Search for the good structures
+    #    while( !((addr >= structs[i,]$start)  && (addr < structs[i,]$end)))
+    #    {
+    #        #show(paste("addr",addr,"st",structs[i,]$start,"end",structs[i,]$end))
+    #        if(i==1)
+    #            break
+    #        i <- i+1
+    #        if(i > length(structs$name))
+    #        {
+    #            i <- 1 # Unknown struc
+    #            break
+    #        }
+    #    }
+    #    snames <- c(snames, structs$name[i], structs$name[i])
+    #}
 }
 acc$struct <- snames
-#TODO remove me
-#acc <- subset(acc, acc$struct!="BT")
-#acc <- subset(acc, acc$struct!="D")
-#structs <- subset(structs, structs$name!="BT")
-#structs <- subset(structs, structs$name!="D")
 remove(addr)
 remove(base)
 remove(page)
 remove(snames)
 remove(i)
 ```
-```{r GenerateStructData, echo=FALSE}
+```{r GenerateStructData, echo=T}
+show(acc)
 # Construct the new dataframe
 structsStats <- c()
 for(s in structs$name)
@@ -112,7 +134,7 @@ structsStats <- rbind(structsStats,sums)
 # Remove temporary variables
 remove(sums)
 ```
-```{r multiplotfunction, echo=FALSE}
+```{r multiplotfunction, echo=T}
 # Multiple plot function
 #
 # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
@@ -157,7 +179,7 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     }
 }
 ```
-```{r ThreadPlots, echo=FALSE}
+```{r ThreadPlots, echo=T}
 th <- subset(structsStats, structsStats$Thread!="total")
 plots <- list()
 plotnames  <- list("Access by threads", "Total access by threads", "Access by structure", "Total access by structure")
@@ -172,7 +194,7 @@ plots[[2]] <- plots[[2]] + ggtitle(plotnames[[2]])
 plots[[2]] <- plots[[2]] + theme(legend.position="none")
 remove(th)
 ```
-```{r StructsPlots, echo=FALSE}
+```{r StructsPlots, echo=T}
 st <- subset(structsStats, structsStats$Struct!="total")
 st <- subset(st, st$Struct!="Others")
 # By structure
@@ -202,7 +224,7 @@ structures and the total amount of access by threads.
 + Memory Imbalance
 + Thread-data affinity
 
-```{r DisplayThread, echo=FALSE, fig.height=7, fig.width=12}
+```{r DisplayThread, echo=T, fig.height=7, fig.width=12}
 multiplot(plotlist=plots[1:2],cols=2)
 if(save=="T")
 {
@@ -219,7 +241,7 @@ This view shows the same data but from the structure point of view.
 + Thread-data affinity
 
 
-```{r DisplayStruct, echo=FALSE, fig.height=7, fig.width=12}
+```{r DisplayStruct, echo=T, fig.height=7, fig.width=12}
 multiplot(plotlist=plots[3:4],cols=2)
 if(save=="T")
 {
@@ -232,7 +254,7 @@ Individual plots
 
 The same plots shown individually:
 
-```{r IndividualPlots, echo=F}
+```{r IndividualPlots, echo=T}
 for(i in 1:length(plots))
 {
     show(plots[[i]])
@@ -250,7 +272,7 @@ Distribution inside Structures
 This visualisation show for each structure the distribution of access inside
 the structure.
 
-```{r Distribution, echo=F}
+```{r Distribution, echo=T}
 # Helper function to identify approximate curve intersections by brute force
 # Function from https://gist.github.com/dsparks/4229410
 intersecDf <- function(odf, str1, str2, addr1, addr2, addr3,val){
@@ -285,7 +307,7 @@ for(str in unique(acc$struct))
     #p <- p + scale_colour_grey()
     p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) + xlab("Page number") + ylab("Number of Accesses")
     p <- p + theme_bw()
-    if(name="lu.S" && str=="flux")
+    if(name=="lu.S" && str=="flux")
     {
         # T0 - T1 intersect
         overlap <- c("between threads", "between NUMA nodes")
@@ -314,7 +336,7 @@ remove(sacc)
 remove(str)
 ```
 
-```{r Cleaning, echo=F}
+```{r Cleaning, echo=T}
 remove(i)
 remove(multiplot)
 remove(plots)
