@@ -308,10 +308,10 @@ void print_numa()
         cout << it.second << "->" << i-1 << " Stack " << stackmap[it.first] << " " << stacksize[i-1] << endl;
     }
 
-    f << "addr,firstacc";
+    f << "addr,firstacc,type";
     for (int i = 0; i<num_threads; i++)
         f << ",T" << i;
-    f << ",Type" << "\n";
+    f << "\n";
 
 
     // determine which thread accessed each page first
@@ -331,12 +331,12 @@ void print_numa()
     {
         for(auto it : finalmap[i]) {
             UINT64 pageaddr = fixstack(it.first, real_tid, finalft[it.first].second);
-            f << pageaddr << "," << finalft[it.first].second;
+            f << pageaddr << "," << finalft[it.first].second<< ","<< TYPE_NAME[i] ;
 
             for (int i=0; i<num_threads; i++)
                 f << "," << it.second[real_tid[i]];
 
-            f << ","<< TYPE_NAME[i] << "\n";
+            f << "\n";
         }
     }
 
