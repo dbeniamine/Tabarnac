@@ -42,6 +42,7 @@ KNOB<bool> DOPAGE(KNOB_MODE_WRITEONCE, "pintool", "p", "0", "enable page usage d
 typedef struct{
     string sym;
     ADDRINT sz;
+    int ended; // 0 if the malloc is not completed (missing ret val)
 }PartAlloc;
 
 PartAlloc Allocs[MAXTHREADS];
@@ -390,13 +391,17 @@ VOID PREMALLOC(ADDRINT retip, THREADID tid, ADDRINT sz)
             getline(fstr, line);
         Allocs[id].sym=get_struct_name(line);
         Allocs[id].sz=sz;
+        Allocs[id].ended=0;
     }
 }
 VOID POSTMALLOC(ADDRINT ret, THREADID tid)
 {
     int id=REAL_TID(tid);
-    cout << "Completed malloc for thread " << id << "sym " << Allocs[id].sym << " sz " << Allocs[id].sz << " addr " << ret << endl;
-    fstructStream << Allocs[id].sym<<","<<ret<<","<<Allocs[id].sz<<endl;
+    if (Allocs[id].ended==0)
+    {
+        fstructStream << Allocs[id].sym<<","<<ret<<","<<Allocs[id].sz<<endl;
+        Allocs[id].ended=1;
+    }
 }
 
 VOID binName(IMG img, VOID *v)
@@ -407,6 +412,7 @@ VOID binName(IMG img, VOID *v)
         char fname[255];
         sprintf(fname, "%s.structs.csv", img_name.c_str());
         fstructStream.open(fname);
+        fstructStream << "name,start,sz" << endl;
 
     }
     getStructs(IMG_Name(img).c_str());
@@ -494,7 +500,6 @@ int getStructs(const char* file)
 
 
 
-    fstructStream << "name,start,sz" << endl;
 
     int fd; 		// File Descriptor
     char *base_ptr;		// ptr to our object in memory
