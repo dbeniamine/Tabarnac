@@ -251,34 +251,6 @@ VOID getRealStackBase()
 }
 
 
-UINT64 fixstack(UINT64 pageaddr, int real_tid[], THREADID first)
-{
-    if (pageaddr < 100 * 1000 * 1000)
-        return pageaddr;
-
-    // cout << "pg " << pageaddr << endl;
-
-    for (auto it : stackmap) {
-        long diff = (it.second + 1 - pageaddr);
-        int tid = real_tid[pidmap[it.first]];
-        // cout << "  " << it.second << " " << abs(diff) << endl;
-        if ((UINT64)labs(diff) <= stacksize[tid]) {
-
-            int fixup = stackmax[tid] - stackmap[it.first]; //should be stackmap[tid]???
-
-            pageaddr += fixup;
-            // cout << "    fixup T" << tid << " " << fixup << ": " << pageaddr-fixup << "->" << pageaddr << endl;
-
-            return pageaddr;
-        }
-    }
-
-    // can also be .so mapped into address space:
-    // cout << "STACK MISMATCH " << pageaddr << " T: " << first <<  " rtid: " << real_tid[pidmap[first]] << endl;
-    return pageaddr;
-}
-
-
 void print_numa()
 {
     int real_tid[MAXTHREADS+1];
@@ -330,7 +302,7 @@ void print_numa()
     for(int i=0; i < 2; ++i)
     {
         for(auto it : finalmap[i]) {
-            UINT64 pageaddr = fixstack(it.first, real_tid, finalft[it.first].second);
+            UINT64 pageaddr = it.first;
             f << pageaddr << "," << finalft[it.first].second<< ","<< TYPE_NAME[i] ;
 
             for (int i=0; i<num_threads; i++)
@@ -393,12 +365,16 @@ VOID PREMALLOC(ADDRINT retip, THREADID tid, ADDRINT sz)
         string line;
         if(!fstr)
         {
-            cerr << "Can't open file '" << fname << "', malloc ignored"<< endl;
-            return;
+            cerr << "Can't open file '" << fname << "', malloc will be anonymous"<< endl;
+            cerr << "Have you compiled your program with '-g' flag ?" <<endl;
+            Allocs[id].sym="AnonymousStruct";
         }
-        for(int i=0; i< ln; ++i)
-            getline(fstr, line);
-        Allocs[id].sym=get_struct_name(line);
+        else
+        {
+            for(int i=0; i< ln; ++i)
+                getline(fstr, line);
+            Allocs[id].sym=get_struct_name(line);
+        }
         Allocs[id].sz=sz;
         Allocs[id].ended=0;
     }
@@ -406,9 +382,13 @@ VOID PREMALLOC(ADDRINT retip, THREADID tid, ADDRINT sz)
 VOID POSTMALLOC(ADDRINT ret, THREADID tid)
 {
     int id=REAL_TID(tid);
+    static int anonymousId=0;
     if (Allocs[id].ended==0)
     {
-        fstructStream << Allocs[id].sym<<","<<ret<<","<<Allocs[id].sz<<endl;
+        fstructStream << Allocs[id].sym;
+        if(Allocs[id].sym.compare("AnonymousStruct")==0)
+            fstructStream << anonymousId++;
+        fstructStream <<","<<ret<<","<<Allocs[id].sz<<endl;
         Allocs[id].ended=1;
     }
 }
