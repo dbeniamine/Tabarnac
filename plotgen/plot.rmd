@@ -24,29 +24,27 @@ acc <- data.frame(acct)
 acc$total  <- rowSums(acc[,-1:-3])
 stacks<-data.frame(read.csv2(file=paste(base,".stackmap.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 ```
-```{r StructSizes, echo=F}
-p <- ggplot(structs, aes(x=name,y=sz, fill=name))
-p <- p + geom_bar(stat="identity")
-p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
-p <- p + theme(legend.position="none")
-if(bw)
-{
-p <- p + theme_bw()
-p <- p + scale_fill_grey()
-}
-structs$end <- rowSums(structs[,2:3])
-structs$sz <- NULL
-structs <- rbind(structs,c("Others",0,0,0))
-```
 ```{r RetrievingPageStructMapping, echo=F}
+# Add stacks and end to structs
+for(i in 1:nrow(stacks))
+{
+    structs <- rbind(structs, c(paste("Stack#",stacks$tid[i], sep=""),stacks$stackmax[i], stacks$stacksize[i]))
+}
+structs <- rbind(structs,c("Others",0,0))
+structs <- transform(structs, start=as.numeric(as.character(start)),sz=as.numeric(as.character(sz)))
+structs$end <- rowSums(structs[,2:3])
+#structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numeric(as.character(end)))
+structs <- structs[order(structs$start),]
+str(structs)
+show(structs)
+remove(stacks)
+#TODO: cotninue here
 # Retrieve page / structure mapping
 snames=c()
-structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numeric(as.character(end)))
-structs <- structs[order(structs$start),]
-# Here we know that structs and acc are sorted by adresse, which ease the search
 i <- 2
 cur <- 2
-cpt <- 1
+#cpt <- 1
+# Here we know that structs and acc are sorted by adresse, which ease the search
 for(page in unique(acc$addr))
 {
     addr <- (2^12)*page
@@ -76,7 +74,7 @@ for(page in unique(acc$addr))
         }
     }
     snames <- c(snames,structs$name[cur],structs$name[cur])
-    cpt <- cpt+1
+    #cpt <- cpt+1
 }
 acc$struct <- snames
 remove(addr)
@@ -87,7 +85,7 @@ remove(i)
 remove(cur)
 remove(OK)
 ```
-```{r GenerateStructData, echo=F}
+```{r GeneratingStructData, echo=F}
 # Construct the new dataframe
 structsStats <- c()
 for(s in structs$name)
@@ -104,7 +102,6 @@ for(s in structs$name)
     }
 }
 remove(sacc)
-remove(structs)
 remove(s)
 remove(i)
 
@@ -129,6 +126,7 @@ for(s in unique(structsStats$Struct))
     if(sum(df$NbAccess)==0)
     {
         structsStats <- subset(structsStats, structsStats$Struct!=s)
+        structs <- subset(structs, structs$name!=s)
         #Todo: maybe remove s from other stuff
     }
 }
@@ -170,18 +168,30 @@ Data structure usages
 The following plots show the structures sizes, this information can give a
 hint on the importance of the different data structures.
 
+*Note:*  
+If all the data structures are name AnonymousStruct#n, you should try to
+recompile your program with the "-g" option and re run TABARNAC.
+
+
 ```{r ShowStructSize, echo=F}
+structs <- subset(structs, structs$name!="Others")
+p <- ggplot(structs, aes(x=name,y=sz, fill=name))
+p <- p + geom_bar(stat="identity")
+p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
+p <- p + theme(legend.position="none")
+if(bw)
+{
+p <- p + theme_bw()
+p <- p + scale_fill_grey()
+}
 if(save)
 {
     ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
 }
 show(p)
 remove(p)
+remove(structs)
 ```
-
-Some of these structures might not appaear in the following plots, this means
-that our tools haven't detected any access in them (it happens when we detect
-structure of external libraries).
 
 The next visualization is more interesting, it shows the number of access and
 ratio Read/Write for every data structures by each threads.
