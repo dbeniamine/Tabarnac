@@ -1,5 +1,5 @@
 Numalize plot visualization
-=========================
+===========================
 
 This scripts gives a fiew visualisation of numalize trace files, it will be
 replaced by a framesoc tool in a near future.
@@ -10,11 +10,18 @@ require(methods, quiet=T)
 library(ggplot2)
 library(plyr)
 library(stringr)
+library(data.table)
 # The palette with grey:
 base=paste(path,"/",name, sep="")
 structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
-acc$total  <- rowSums(acc[,-1:-3])
+# Information not neequired
+acc$firstacc <- NULL
+# Merge duplicate addresses
+acct <- data.table(acc)
+acct <- acct[,lapply(.SD,sum),by=c("addr","type")]
+acc <- data.frame(acct)
+#TODO fix total acc$total  <- rowSums(acc[,-1:-3])
 stacks<-data.frame(read.csv2(file=paste(base,".stackmap.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 ```
 ```{r StructSizes, echo=T}
@@ -39,28 +46,29 @@ structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numer
 structs <- structs[order(structs$start),]
 # Here we know that structs and acc are sorted by adresse, which ease the search
 i <- 2
-show(structs)
+cur <- 2
+cpt <- 1
 for(page in unique(acc$addr))
 {
-    addr=(2^12)*page
+    addr <- (2^12)*page
     OK <- F
+    cur <- 1
     while(!OK && i<=nrow(structs))
     {
-        show(paste("loop current struct", i))
+        show(paste(cpt,"loop current struct", i, "addr", addr))
         if(addr < structs[i,]$start)
         {
             #Addr is between two structs
             OK <- T
-            show(paste(addr,"between structs n°",i-1,i))
-            snames <- c(snames,structs$name[1],structs$name[1])
+            show(paste(cpt,addr,"between structs n°",i-1,i))
         }else
         {
             if(addr >= structs[i,]$start && addr < structs[i,]$end)
             {
                 # Addr is in the next struct
-                show(paste(addr,"in struct", structs[i,]$name))
+                show(paste(cpt,addr,"in struct", structs[i,]$name))
                 OK <- T
-                snames <- c(snames, structs$name[i], structs$name[i])
+                cur <- i
             }else
             {
                 #Addr might be in the next struct
@@ -68,32 +76,8 @@ for(page in unique(acc$addr))
             }
         }
     }
-    if(!OK)
-    {
-        snames <- c(snames,structs$name[1],structs$name[1])
-    }
-    #if(addr < structs[2,]$start)
-    #{
-    #    # Addr is before structs
-    #    snames <- c(snames,structs$name[1],structs$name[1])
-    #}
-    #else
-    #{
-    #    # Search for the good structures
-    #    while( !((addr >= structs[i,]$start)  && (addr < structs[i,]$end)))
-    #    {
-    #        #show(paste("addr",addr,"st",structs[i,]$start,"end",structs[i,]$end))
-    #        if(i==1)
-    #            break
-    #        i <- i+1
-    #        if(i > length(structs$name))
-    #        {
-    #            i <- 1 # Unknown struc
-    #            break
-    #        }
-    #    }
-    #    snames <- c(snames, structs$name[i], structs$name[i])
-    #}
+    snames <- c(snames,structs$name[cur],structs$name[cur])
+    cpt <- cpt+1
 }
 acc$struct <- snames
 remove(addr)
@@ -101,32 +85,39 @@ remove(base)
 remove(page)
 remove(snames)
 remove(i)
+remove(cur)
+remove(OK)
 ```
 ```{r GenerateStructData, echo=T}
-show(acc)
+#show(acc)
 # Construct the new dataframe
 structsStats <- c()
 for(s in structs$name)
 {
     sacc <- subset(acc, acc$struct==s)
+    show(s)
+    show(sacc)
     sacc$struct <- NULL
     sacc$addr <- NULL
-    sacc$firstacc <- NULL
-    sum <- data.frame(colSums(sacc))
-    for(i in 1:nrow(sum))
+    sumR <- data.frame(colSums(subset(sacc,sacc$type=="R")[-1]))
+    sumW <- data.frame(colSums(subset(sacc,sacc$type=="W")[-1]))
+    for(i in 1:nrow(sumR))
     {
-        structsStats <- rbind(structsStats,c(s,rownames(sum)[i],sum[i,]))
+        structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],sumR[i,],sumW[i,]))
     }
 }
 remove(sacc)
 remove(structs)
-remove(sum)
+remove(sumR)
+remove(sumW)
 remove(s)
 remove(i)
 
 structsStats <- data.frame(structsStats)
-colnames(structsStats) <- c("Struct", "Thread", "NbAccess")
-structsStats <- transform(structsStats, NbAccess=as.numeric(as.character(NbAccess)))
+colnames(structsStats) <- c("Struct", "Thread", "NbRead", "NbWrite")
+structsStats <- transform(structsStats, NbRead=as.numeric(as.character(NbRead)))
+structsStats <- transform(structsStats, NbWrite=as.numeric(as.character(NbWrite)))
+show(structsStats)
 # Add the sums by threads
 sums <- ddply(structsStats[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
 sums$Struct <- rep("total", nrow(sums))
@@ -289,7 +280,6 @@ intersecDf <- function(odf, str1, str2, addr1, addr2, addr3,val){
     return(shade)
 }
 
-acc$firstacc <- NULL
 acc <- subset(acc, acc$struct!="Others")
 plotname <- "Access distribution by thread for structure"
 # For each structures
