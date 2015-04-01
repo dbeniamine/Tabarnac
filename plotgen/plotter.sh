@@ -9,6 +9,7 @@ then
     exit 1
 fi
 save=F
+BW=T
 if [ ! -z "$3" ] && [ $3 == "true" ]
 then
     save=T
@@ -18,7 +19,7 @@ fi
 echo "tid,stackmax,stacksize" | cat - "$1/$2"".stackmap" | sed 's/ /,/g' > "$1/$2".stackmap.csv
 
 Rscript -e \
-    "require(knitr); path <- '$1'; name <- '$2'; save <-'$save'; knit2html(\"plot.rmd\", output='$1/$2-plots.html')"
+    "require(knitr); path <- '$1'; name <- '$2'; save <-'$save'; bw<-'$BW'; knit2html(\"plot.rmd\", output='$1/$2-plots.html')"
 # Clean and copi figures
 rm -rf $1/figure
 mv ./figure $1/

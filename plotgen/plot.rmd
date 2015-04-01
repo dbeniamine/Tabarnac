@@ -1,10 +1,10 @@
 Numalize plot visualization
 ===========================
 
-This scripts gives a fiew visualisation of numalize trace files, it will be
-replaced by a framesoc tool in a near future.
 
-```{r Parsing, echo=T}
+**TODO: Differentiate Others: stack / Others : var**
+
+```{r Parsing, echo=F}
 #Parse csv files
 require(methods, quiet=T)
 library(ggplot2)
@@ -21,25 +21,24 @@ acc$firstacc <- NULL
 acct <- data.table(acc)
 acct <- acct[,lapply(.SD,sum),by=c("addr","type")]
 acc <- data.frame(acct)
-#TODO fix total acc$total  <- rowSums(acc[,-1:-3])
+acc$total  <- rowSums(acc[,-1:-3])
 stacks<-data.frame(read.csv2(file=paste(base,".stackmap.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 ```
-```{r StructSizes, echo=T}
+```{r StructSizes, echo=F}
 p <- ggplot(structs, aes(x=name,y=sz, fill=name))
 p <- p + geom_bar(stat="identity")
 p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
-p <- p + theme_bw()
 p <- p + theme(legend.position="none")
+if(bw)
+{
+p <- p + theme_bw()
 p <- p + scale_fill_grey()
-show(p)
-ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
-remove(p)
-# Simplify struct representation
+}
 structs$end <- rowSums(structs[,2:3])
 structs$sz <- NULL
 structs <- rbind(structs,c("Others",0,0,0))
 ```
-```{r RetrievingPageStructMapping, echo=T}
+```{r RetrievingPageStructMapping, echo=F}
 # Retrieve page / structure mapping
 snames=c()
 structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numeric(as.character(end)))
@@ -55,18 +54,18 @@ for(page in unique(acc$addr))
     cur <- 1
     while(!OK && i<=nrow(structs))
     {
-        show(paste(cpt,"loop current struct", i, "addr", addr))
+        #show(paste(cpt,"loop current struct", i, "addr", addr))
         if(addr < structs[i,]$start)
         {
             #Addr is between two structs
             OK <- T
-            show(paste(cpt,addr,"between structs n°",i-1,i))
+            #show(paste(cpt,addr,"between structs n°",i-1,i))
         }else
         {
             if(addr >= structs[i,]$start && addr < structs[i,]$end)
             {
                 # Addr is in the next struct
-                show(paste(cpt,addr,"in struct", structs[i,]$name))
+                #show(paste(cpt,addr,"in struct", structs[i,]$name))
                 OK <- T
                 cur <- i
             }else
@@ -88,174 +87,151 @@ remove(i)
 remove(cur)
 remove(OK)
 ```
-```{r GenerateStructData, echo=T}
-#show(acc)
+```{r GenerateStructData, echo=F}
 # Construct the new dataframe
 structsStats <- c()
 for(s in structs$name)
 {
     sacc <- subset(acc, acc$struct==s)
-    show(s)
-    show(sacc)
     sacc$struct <- NULL
     sacc$addr <- NULL
     sumR <- data.frame(colSums(subset(sacc,sacc$type=="R")[-1]))
     sumW <- data.frame(colSums(subset(sacc,sacc$type=="W")[-1]))
     for(i in 1:nrow(sumR))
     {
-        structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],sumR[i,],sumW[i,]))
+        structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],"R",sumR[i,]))
+        structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],"W",sumW[i,]))
     }
 }
 remove(sacc)
 remove(structs)
-remove(sumR)
-remove(sumW)
 remove(s)
 remove(i)
 
 structsStats <- data.frame(structsStats)
-colnames(structsStats) <- c("Struct", "Thread", "NbRead", "NbWrite")
-structsStats <- transform(structsStats, NbRead=as.numeric(as.character(NbRead)))
-structsStats <- transform(structsStats, NbWrite=as.numeric(as.character(NbWrite)))
-show(structsStats)
+colnames(structsStats) <- c("Struct", "Thread", "Type","NbAccess")
+structsStats <- transform(structsStats, NbAccess=as.numeric(as.character(NbAccess)))
 # Add the sums by threads
-sums <- ddply(structsStats[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
-sums$Struct <- rep("total", nrow(sums))
-structsStats <- rbind(structsStats,sums)
-# Remove temporary variables
-remove(sums)
-```
-```{r multiplotfunction, echo=T}
-# Multiple plot function
-#
-# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
-# - cols:   Number of columns in layout
-# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
-#
-# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
-# then plot 1 will go in the upper left, 2 will go in the upper right, and
-# 3 will go all the way across the bottom.
-#
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-    library(grid)
-
-    # Make a list from the ... arguments and plotlist
-    plots <- c(list(...), plotlist)
-
-    numPlots = length(plots)
-
-    # If layout is NULL, then use 'cols' to determine layout
-    if (is.null(layout)) {
-        # Make the panel
-        # ncol: Number of columns of plots
-        # nrow: Number of rows needed, calculated from # of cols
-        layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                         ncol = cols, nrow = ceiling(numPlots/cols))
-    }
-
-    if (numPlots==1) {
-        print(plots[[1]])
-    } else {
-        # Set up the page
-        grid.newpage()
-        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-
-        # Make each plot, in the correct location
-        for (i in 1:numPlots) {
-            # Get the i,j matrix positions of the regions that contain this subplot
-            matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-            print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                            layout.pos.col = matchidx$col))
-        }
-    }
-}
-```
-```{r ThreadPlots, echo=T}
-th <- subset(structsStats, structsStats$Thread!="total")
-plots <- list()
-plotnames  <- list("Access by threads", "Total access by threads", "Access by structure", "Total access by structure")
-# By structure
-plots[[1]] <- ggplot(subset(th, th$Struct!="total") ,aes(x=Thread,y=NbAccess,fill=Struct))
-plots[[1]] <- plots[[1]] + geom_bar(position=position_dodge(.9), stat="identity")
-plots[[1]] <- plots[[1]] + ggtitle(plotnames[[1]])
-# Total by threads
-plots[[2]] <- ggplot(subset(th, th$Struct=="total") ,aes(x=Thread,y=NbAccess,fill=Thread))
-plots[[2]] <- plots[[2]] + geom_bar(position=position_dodge(.9), stat="identity")
-plots[[2]] <- plots[[2]] + ggtitle(plotnames[[2]])
-plots[[2]] <- plots[[2]] + theme(legend.position="none")
-remove(th)
-```
-```{r StructsPlots, echo=T}
-st <- subset(structsStats, structsStats$Struct!="total")
-st <- subset(st, st$Struct!="Others")
-# By structure
-plots[[3]] <- ggplot(subset(st, st$Thread!="total") ,aes(x=Struct,y=NbAccess,fill=Thread))
-plots[[3]] <- plots[[3]] + geom_bar(position=position_dodge(.9), stat="identity")
-plots[[3]] <- plots[[3]] + ggtitle(plotnames[[3]])
-# Total by structure
-plots[[4]] <- ggplot(subset(st, st$Thread=="total") ,aes(x=Struct,y=NbAccess,fill=Struct))
-plots[[4]] <- plots[[4]] + geom_bar(position=position_dodge(.9), stat="identity")
-plots[[4]] <- plots[[4]] + ggtitle(plotnames[[4]])
-plots[[4]] <- plots[[4]] + theme_bw()
-plots[[4]] <- plots[[4]] + theme(legend.position="none")
-plots[[4]] <- plots[[4]] + scale_fill_grey()
-remove(st)
-```
-If there is some R warning, you should check the arguments you gave to the
-script and restart.
-
-
-
-By thread view
---------------
-
-The first view shows the number of access done by each thread on each
-structures and the total amount of access by threads.
-
-+ Memory Imbalance
-+ Thread-data affinity
-
-```{r DisplayThread, echo=T, fig.height=7, fig.width=12}
-multiplot(plotlist=plots[1:2],cols=2)
-if(save=="T")
+sumR <- ddply(subset(structsStats, structsStats$Type=="R")[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
+sumR$Struct <- rep("total", nrow(sumR))
+sumR$Type <- rep("R", nrow(sumR))
+structsStats <- rbind(structsStats,sumR)
+sumW <- ddply(subset(structsStats, structsStats$Type=="W")[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
+sumW$Struct <- rep("total", nrow(sumW))
+sumW$Type <- rep("W", nrow(sumW))
+structsStats <- rbind(structsStats,sumW)
+# Remove the unused structs
+for(s in unique(structsStats$Struct))
 {
-    ggsave(filename=paste(path,"/",name,"_summary.pdf", sep=""))
+    df <- subset(structsStats, structsStats$Struct==s)
+    df <- subset(df, df$Thread=="total")
+    #Should be only two row
+    if(sum(df$NbAccess)==0)
+    {
+        structsStats <- subset(structsStats, structsStats$Struct!=s)
+        #Todo: maybe remove s from other stuff
+    }
 }
+# Remove temporary variables
+remove(sumR)
+remove(sumW)
 ```
 
-By Structure view
+TABARNAC **TODO: explain the name** profides a several vizualisations of
+memory traces, it aims at helping the developper finding wrong memory uses to
+improve its code.
+
+Introduction
+------------
+
+**TODO**
+Classical issues
+
++ Remote stack access
+    + First of all this is programatically bad
+    + Can't be mapped efficiently by any tool
+    + Use heap !!!
++ All to all sharing
+    + Does not fit NUMA properties, try to make thread works on different part
+    of the data
+    + Replication if possible (no write, or merge in the end)
++ ??
+outline of the next sections
+
+NUMA machine
+------------
+
+**TODO: include lstopo graph here**
+
+
+Data structure usages
+---------------------
+
+The following plots show the structures sizes, this information can give a
+hint on the importance of the different data structures.
+
+```{r ShowStructSize, echo=F}
+if(save)
+{
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
+}
+show(p)
+remove(p)
+```
+
+Some of these structures might not appaear in the following plots, this means
+that our tools haven't detected any access in them (it happens when we detect
+structure of external libraries).
+
+The next visualization is more interesting, it shows the number of access and
+ratio Read/Write for every data structures by each threads.
+
+```{r ByStructsPlot, echo=F, fig.height=12, fig.width=12}
+df <- subset(structsStats, structsStats$Struct!="total")
+p <- ggplot(df, aes(x=Struct,y=NbAccess,fill=Type))
+p <- p +geom_bar(stat="identity")
+p <- p + facet_wrap(~Thread, ncol=length(unique(df$Thread))/2)
+p <- p + ggtitle(paste("Number of access per thread and structures for", name))
+p <- p + xlab("Structure name") + ylab("Number of accesses")
+if(bw)
+{
+    p <- p + theme_bw()
+    p <- p + scale_fill_grey()
+}
+if(save)
+{
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
+}
+show(p)
+remove(p)
+```
+
+
+Detected problems
 -----------------
 
-This view shows the same data but from the structure point of view.
+**TODO: do stuff**
+Have we automatically detected a classical error
 
-+ Important structures
-+ Thread-data affinity
++   Yes:
+    + what , where , how to fix it ?
+    + Look at the plot one issue might hide and other one
++   No
+        If you are using that program it probably means that you have some
+        perf issues, please look at the plots of the following sections
+
+Sharing inside structures
+-------------------------
+
+For each struct the sharing by threads.
+too much all to all sharing is not good for numa
+The ideal thing is hierarchical sharing matching NUMA hierarchie
 
 
-```{r DisplayStruct, echo=T, fig.height=7, fig.width=12}
-multiplot(plotlist=plots[3:4],cols=2)
-if(save=="T")
-{
-    ggsave(filename=paste(path,"/",name,"_summary.pdf", sep=""))
-}
-```
+**TODO** Explanaitions
 
-Individual plots
-----------------
 
-The same plots shown individually:
 
-```{r IndividualPlots, echo=T}
-for(i in 1:length(plots))
-{
-    show(plots[[i]])
-    if(save=="T")
-    {
-        ggsave(paste(path, "/",name,"_",
-                     str_replace_all(plotnames[[i]], " ", "_"),".pdf", sep=""))
-    }
-}
-```
 
 Distribution inside Structures
 ------------------------------
@@ -328,7 +304,6 @@ remove(str)
 
 ```{r Cleaning, echo=T}
 remove(i)
-remove(multiplot)
 remove(plots)
 remove(plotnames)
 remove(save)
@@ -336,5 +311,5 @@ remove(name)
 remove(path)
 remove(structsStats)
 remove(acc)
-#ls()
+ls()
 ```
