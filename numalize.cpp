@@ -20,6 +20,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <errno.h>
+
 #include <libelf/libelf.h>
 #include <libelf/gelf.h>
 #include <execinfo.h>
@@ -180,6 +182,17 @@ VOID trace_memory_page(INS ins, VOID *v)
 }
 
 
+long GetStackSize()
+{
+   struct rlimit sl;
+   int returnVal = getrlimit(RLIMIT_STACK, &sl);
+   if (returnVal == -1)
+   {
+      cerr << "Error. errno: " << errno << endl;
+   }
+   return sl.rlim_cur;
+}
+
 VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
     __sync_add_and_fetch(&num_threads, 1);
@@ -189,8 +202,22 @@ VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
     }
 
     int pid = PIN_GetTid();
-    pidmap[pid] = tid ? tid - 1 : tid;
+    pidmap[pid] = REAL_TID(tid);
     stackmap[pid] = PIN_GetContextReg(ctxt, REG_STACK_PTR) >> PAGESIZE;
+    // Print Tid, StackMin, StackSize
+    ofstream ofs;
+    if(tid==0)
+    {
+        ofs.open(img_name + ".stackmap.csv");
+        ofs << "tid,stackmax,sz"<<endl;
+    }
+    else
+    {
+        ofs.open(img_name + ".stackmap.csv", std::ios_base::app);
+    }
+    ofs << REAL_TID(tid) <<"," << stackmap[pid] <<","<< GetStackSize() << endl;
+    ofs.close();
+
 }
 
 
@@ -231,26 +258,6 @@ VOID print_matrix()
 }
 
 
-VOID getRealStackBase()
-{
-    ifstream ifs;
-    ifs.open(img_name + ".stackmap");
-
-    string line;
-    int tid;
-    UINT64 maxaddr, size;
-
-    while (getline(ifs, line)) {
-        stringstream lineStream(line);
-        lineStream >> tid >> maxaddr >> size;
-        stackmax[tid] = maxaddr;
-        stacksize[tid] = size;
-    }
-
-    ifs.close();
-}
-
-
 void print_numa()
 {
     int real_tid[MAXTHREADS+1];
@@ -271,7 +278,6 @@ void print_numa()
 
     cout << ">>> " << fname << endl;
 
-    getRealStackBase();
 
     f.open(fname);
 
