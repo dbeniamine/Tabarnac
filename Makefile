@@ -12,7 +12,7 @@ ifeq ($(MYVER), Pin 2.10) # old pin versions use different makefile system
 
 TOOL_CXXFLAGS += -Wall -g -std=c++0x -Wno-error
 
-TOOL_ROOTS := numalize
+TOOL_ROOTS := tabarnac
 
 PIN_HOME = /opt/pin
 PIN_KIT=$(PIN_HOME)
@@ -59,7 +59,7 @@ TOOL_CXXFLAGS += -Wall -g -std=c++0x -Wno-error
 TOOL_LDFLAGS += -Wl,-rpath,/opt/pin/intel64/runtime -lelf
 
 
-TEST_TOOL_ROOTS := numalize
+TEST_TOOL_ROOTS := tabarnac
 
 include $(TOOLS_ROOT)/Config/makefile.default.rules
 

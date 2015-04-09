@@ -42,8 +42,6 @@ unsigned int REAL_PAGESIZE;
 KNOB<int> COMMSIZE(KNOB_MODE_WRITEONCE, "pintool", "cs", "6", "comm shift in bits");
 KNOB<int> INTERVAL(KNOB_MODE_WRITEONCE, "pintool", "i", "0", "print interval (ms) (0=disable)");
 
-KNOB<bool> DOCOMM(KNOB_MODE_WRITEONCE, "pintool", "c", "0", "enable comm detection");
-KNOB<bool> DOPAGE(KNOB_MODE_WRITEONCE, "pintool", "p", "0", "enable page usage detection");
 
 
 struct{
@@ -184,13 +182,13 @@ VOID trace_memory_page(INS ins, VOID *v)
 
 long GetStackSize()
 {
-   struct rlimit sl;
-   int returnVal = getrlimit(RLIMIT_STACK, &sl);
-   if (returnVal == -1)
-   {
-      cerr << "Error. errno: " << errno << endl;
-   }
-   return sl.rlim_cur;
+    struct rlimit sl;
+    int returnVal = getrlimit(RLIMIT_STACK, &sl);
+    if (returnVal == -1)
+    {
+        cerr << "Error. errno: " << errno << endl;
+    }
+    return sl.rlim_cur;
 }
 
 VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
@@ -330,15 +328,9 @@ VOID mythread(VOID * arg)
         if (INTERVAL == 0)
             continue;
 
-        if (DOCOMM) {
-            print_matrix();
-            memset(comm_matrix, 0, sizeof(comm_matrix));
-        }
-        if (DOPAGE) {
-            print_numa();
-            // for(auto it : pagemap)
-            // 	fill(begin(it.second), end(it.second), 0);
-        }
+        print_numa();
+        // for(auto it : pagemap)
+        // 	fill(begin(it.second), end(it.second), 0);
     }
 }
 
@@ -428,10 +420,7 @@ VOID binName(IMG img, VOID *v)
 
 VOID Fini(INT32 code, VOID *v)
 {
-    if (DOCOMM)
-        print_matrix();
-    if (DOPAGE)
-        print_numa();
+    print_numa();
     fstructStream.close();
 
     cout << endl << "MAXTHREADS: " << MAXTHREADS << " COMMSIZE: " << COMMSIZE << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
@@ -448,25 +437,14 @@ int main(int argc, char *argv[])
     REAL_PAGESIZE=sysconf(_SC_PAGESIZE);
     PAGESIZE = log2(REAL_PAGESIZE);
 
-    if (!DOCOMM && !DOPAGE) {
-        cerr << "ERROR: need to choose at least one of communication (-c) or page usage (-p) detection" << endl;
-        cerr << endl << KNOB_BASE::StringKnobSummary() << endl;
-        return 1;
-    }
-
     THREADID t = PIN_SpawnInternalThread(mythread, NULL, 0, NULL);
     if (t!=1)
         cerr << "ERROR internal thread " << t << endl;
 
     cout << endl << "MAXTHREADS: " << MAXTHREADS << " COMMSIZE: " << COMMSIZE << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
 
-    if (DOPAGE)
-        INS_AddInstrumentFunction(trace_memory_page, 0);
+    INS_AddInstrumentFunction(trace_memory_page, 0);
 
-    if (DOCOMM) {
-        INS_AddInstrumentFunction(trace_memory_comm, 0);
-        commmap.reserve(100*1000*1000);
-    }
 
 
 

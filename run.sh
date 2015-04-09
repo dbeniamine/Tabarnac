@@ -18,9 +18,7 @@ echo -e "\n\n## running pin: $PROGARGS"
 
 time -p pin -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so ${@}
 
-if [[ $1 == "-p" ]]; then
-	# sort output page csv's according to page address
-	for f in $PROG.*.page.csv; do
-		sort -n -t, -k 1,1 -o $f $f
-	done
-fi
+# sort output page csv's according to page address
+for f in $PROG.*.page.csv; do
+    sort -n -t, -k 1,1 -o $f $f
+done
