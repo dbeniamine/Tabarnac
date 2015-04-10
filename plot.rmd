@@ -1,28 +1,31 @@
-Numalize plot visualization
-===========================
+TABARNAC visualization
+======================
 
-TABARNAC **TODO: explain the name** profides a several vizualisations of
-memory traces, it aims at helping the developper finding wrong memory uses to
-improve its code.
+TABARNAC: Tools for Analyzing the Behaviour of Applications Running on Numa
+ArChitectures provides several visualisations of memory traces and gives you
+hints to improve your applications' memory behaviour.
 
 Introduction
 ------------
 
-**TODO**
-Classical issues
+Before presenting any visualization, there is a quick reminder on classical
+problems:
 
-+ Remote stack access
-    + First of all this is programatically bad
-    + Can't be mapped efficiently by any tool
-    + Use heap !!!
-+ All to all sharing
-    + Does not fit NUMA properties, try to make thread works on different part
-      of the data
-    + Replication if possible (no write, or merge in the end)
-+ ??
-  outline of the next sections
+It is important to divide huge sets of data to distribute them amoung the
+threads, especially for NUMA machines. If some of your structures are equally
+(an highly) accessed by all threads, you should change the access patterns.
+You should obtain best performances by doing one of the following solutions:
++ Divide the structures and make threads works on smaller problems, then pin
+  threads working on close data to the same numa node (or use an automated
+  tool to do so).
++ If the structure is mostly read and the structure size is small enough, each
+  thread can work on local copy. *Warning: * you will need to decide how to
+  handle write.
 
-TODO
+*Beware of the stack:*  Stack is designed for private data, remote stack access
+(for instance T0 accessing Stack#2) might be very slow, avoid them as much as
+possible. If your application uses intensively the stack, unsure that the
+stack is mapped on the same node as the thread its belong (man numa)
 
 ```{r Parsing, echo=F}
 #Parse csv files
@@ -112,28 +115,28 @@ remove(OK)
 *Note:*
 
 If there are any warning/error from R before this text, R might have failed
-... I recommand to fix them before going further in this analysis.
+... I recommend to fix them before going further in this analysis.
 
 
-NUMA machine
-------------
+Topology
+--------
 
-**TODO: include lstopo graph here**
-
+![topo](figure/topo.png)
 
 Data structure usages
 ---------------------
 
 The following plots show the structures sizes, this information can give a
-hint on the importance of the different data structures.
+hint on the importance of the different data structures and on the possible
+kind of optimization.
 
 *Note:*
 
 + If all the data structures are name AnonymousStruct#n, you should try to
 recompile your program with the "-g" option and re run TABARNAC.
-+ Some structres might be ignored by TABARNAC
-    + Because no acces have been detected: this happens with structures
-     smaller than one page (usualy 4ko).
++ Some structures might be ignored by TABARNAC
+    + Because no access have been detected: this happens with structures
+     smaller than one page (usually 4ko).
     + Because the structure is not used enough: to keep the figures clear, we
      automatically remove the structures responsible for less than 1 one
      access over 10000.
@@ -223,16 +226,37 @@ remove(p)
 remove(structs)
 ```
 
-The next visualization is more interesting, it shows the number of access and
-ratio Read/Write for every data structures by each threads.
+The following visualization shows the number of access and the ratio
+Read/Write for every data structures by each threads.
 
-```{r ByStructsPlot, echo=F, fig.height=20, fig.width=20}
-df <- subset(structsStats, structsStats$Struct!="total")
-p <- ggplot(df, aes(x=Struct,y=NbAccess,fill=Type))
+```{r ByStructsRWPlot, echo=F, fig.height=20, fig.width=20}
+df <- subset(structsStats, structsStats$Thread!="total")
+p <- ggplot(subset(df, df$Struct!="total"), aes(x=Struct,y=NbAccess,fill=Type))
 p <- p +geom_bar(stat="identity")
 p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(df$Thread))))
 p <- p + ggtitle(paste("Number of access per thread and structures for", name))
 p <- p + xlab("Structure name") + ylab("Number of accesses")
+p <- p + theme(legend.position="bottom")
+if(bw)
+{
+    p <- p + theme_bw()
+    p <- p + scale_fill_grey()
+}
+if(save)
+{
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
+}
+show(p)
+remove(p)
+```
+
+```{r TotalRWPlot, echo=F, fig.height=8, fig.width=8}
+df <- subset(structsStats, structsStats$Struct!="total")
+p <- ggplot(subset(df, df$Thread=="total"), aes(x=Struct,y=NbAccess,fill=Type))
+p <- p +geom_bar(stat="identity")
+p <- p + ggtitle(paste("Number of access per thread and structures for", name))
+p <- p + xlab("Structure name") + ylab("Number of accesses")
+p <- p + theme(legend.position="bottom")
 if(bw)
 {
     p <- p + theme_bw()
@@ -251,26 +275,32 @@ remove(df)
 Detected problems
 -----------------
 
-**TODO: do stuff**
-Have we automatically detected a classical error
+TABARNAC tries to detect automatically performance issues:
+
+```{r AutoDetect, echo=F}
+show("Nothing detected: not implemented yet")
+```
 
 + Yes:
     + what , where , how to fix it ?
-    + Look at the plot one issue might hide and other one
+    + Look at the other plots, one issue might hide and others...
 + No:
   If you are using TABARNAC it probably means that you have some
-  perf issues, please look at the plots of the following sections
+  performances issues, we just don't have detected the cause automatically,
+  take a look at the plots of the following sections.
 
 Sharing inside structures
 -------------------------
 
-For each struct the sharing by threads.
-too much all to all sharing is not good for numa
-The ideal thing is hierarchical sharing matching NUMA hierarchie
-
-
-**TODO** Explanaitions
-
+The following plots shows for each structure how much and where each thread
+access it. It provides several important informations for optimizations:
++ If you can identify groups of threads working on the same part of important
+  structures, try to bind them on the same NUMA node, with the part of the
+  structure they access.
++ If the pattern is the same for all threads, you can:
+    + Change your code to make threads work on different part of the
+      structures
+    + Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
 
 ```{r Distribution, echo=F, fig.height=20, fig.width=20}
 plotname <- "Access distribution by thread for structure"
@@ -317,7 +347,7 @@ R/W patterns
 
 The plots presented here are only interesting in very particular
 circumstances, it show the difference between Read and Write pattern for each
-couple Thread, Structure
+couple Thread, Structure.
 
 **TODO**
 
