@@ -1,24 +1,82 @@
 #!/bin/bash
+# Copyright (C) 2015  Beniamine, David <David@Beniamine.net>
+# Author: Beniamine, David <David@Beniamine.net>
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -o errexit -o nounset -o pipefail
+usage()
+{
+    echo "Usage $0 [options] -- cmd args"
+    echo "Options:"
+    echo "-b            Do black and white plots"
+    echo "-s            Save plots (pdf files)"
+    echo "-p bench      Do not run, plot only for benchmark named benc"
+    echo "-h            pDisplay this help and quit"
+}
 
-# directory of this script
-DIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# recompile pintool if necessary
-(cd $DIR; make -q || make)
-
-# program to trace and its arguments
-PROGARGS=$(echo ${@} | sed s,.*--\ ,,)
-PROG=$(echo $PROGARGS | { read first rest; echo $(basename $first) | sed s,\\s.*,, ; } )
-
-
-# finally, run pin
-echo -e "\n\n## running pin: $PROGARGS"
-
-time -p pin -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so ${@}
-
-# sort output page csv's according to page address
-for f in $PROG.*.page.csv; do
-    sort -n -t, -k 1,1 -o $f $f
+run=true
+while getopts "bshp:" opt; do
+    case $opt in
+        b)
+            bw="-b"
+            ;;
+        p)
+            run=false
+            PROG="$OPTARG"
+            ;;
+        s)
+            save="-s"
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option : -$OPTARG" >&2
+            usage
+            exit 1
+            ;;
+    esac
 done
+
+if $run
+then
+    set -o errexit -o nounset -o pipefail
+
+    # directory of this script
+    DIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+    # recompile pintool if necessary
+    (cd $DIR; make -q || make)
+
+    # program to trace and its arguments
+    PROGARGS=$(echo ${@} | sed s,.*--\ ,,)
+    PROG=$(echo $PROGARGS | { read first rest; echo $(basename $first) | sed s,\\s.*,, ; } )
+
+
+    # finally, run pin
+    echo -e "\n\n## running pin: $PROGARGS"
+
+    time -p pin -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so ${@}
+
+    # sort output page csv's according to page address
+    for f in $PROG.*.page.csv; do
+        sort -n -t, -k 1,1 -o $f $f
+    done
+fi
+
+dir=$(pwd)
+cd $(dirname $0)/plotgen
+./plotter.sh -d $dir -n $PROG $save $bw
+cd -

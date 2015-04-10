@@ -22,13 +22,14 @@ Classical issues
 + ??
   outline of the next sections
 
+TODO
+
 ```{r Parsing, echo=F}
 #Parse csv files
-require(methods, quiet=T)
-library(ggplot2)
-library(plyr)
-library(stringr)
-library(data.table)
+insist(ggplot2)
+insist(plyr)
+insist(stringr)
+insist(data.table)
 minRatio <- 10000 # Structs responsible of less than 1/minRation access will be ignored
 # The palette with grey:
 base=paste(path,"/",name, sep="")
@@ -201,7 +202,7 @@ remove(sacc)
 remove(minRatio)
 ```
 
-```{r ShowStructSize, echo=F}
+```{r ShowStructSize, echo=F, fig.height=20, fig.width=20}
 structs <- subset(structs, structs$name!="Others")
 acc <- subset(acc,acc$struct!="Others")
 p <- ggplot(structs, aes(x=name,y=sz, fill=name))
@@ -225,11 +226,11 @@ remove(structs)
 The next visualization is more interesting, it shows the number of access and
 ratio Read/Write for every data structures by each threads.
 
-```{r ByStructsPlot, echo=F, fig.height=12, fig.width=12}
+```{r ByStructsPlot, echo=F, fig.height=20, fig.width=20}
 df <- subset(structsStats, structsStats$Struct!="total")
 p <- ggplot(df, aes(x=Struct,y=NbAccess,fill=Type))
 p <- p +geom_bar(stat="identity")
-p <- p + facet_wrap(~Thread, ncol=length(unique(df$Thread))/2)
+p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(df$Thread))))
 p <- p + ggtitle(paste("Number of access per thread and structures for", name))
 p <- p + xlab("Structure name") + ylab("Number of accesses")
 if(bw)
@@ -271,7 +272,7 @@ The ideal thing is hierarchical sharing matching NUMA hierarchie
 **TODO** Explanaitions
 
 
-```{r Distribution, echo=T}
+```{r Distribution, echo=F, fig.height=20, fig.width=20}
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -285,7 +286,7 @@ for(str in unique(acc$struct))
     acct$type <- NULL
     acct <- acct[,lapply(.SD,sum),by=c("addr")]
     sacc <- data.frame(acct)
-    show(acct)
+    #show(acct)
     remove(acct)
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
@@ -296,7 +297,7 @@ for(str in unique(acc$struct))
     {
         p <- p + theme_bw()
     }
-    p <- p + facet_wrap(~Thread, ncol=2)
+    p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(ndf$Thread))))
     p <- p + theme(legend.position="bottom")
     show(p)
     if(save)
