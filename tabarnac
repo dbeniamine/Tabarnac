@@ -26,17 +26,19 @@ usage()
 }
 
 run=true
+bw=F
+save=F
 while getopts "bshp:" opt; do
     case $opt in
         b)
-            bw="-b"
+            bw="T"
             ;;
         p)
             run=false
             PROG="$OPTARG"
             ;;
         s)
-            save="-s"
+            save="T"
             ;;
         h)
             usage
@@ -77,6 +79,9 @@ then
 fi
 
 dir=$(pwd)
-cd $(dirname $0)/plotgen
-./plotter.sh -d $dir -n $PROG $save $bw
+cd $(dirname $0)
+Rscript plot.R $dir $PROG $save $bw
+# Clean and copi figures
+rm -rf $dir/figure
+mv ./figure $dir/
 cd -

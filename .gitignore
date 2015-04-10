@@ -2,3 +2,5 @@ obj-*
 pin
 pin-*
 traces/*
+tags
+cscope.*

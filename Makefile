@@ -43,7 +43,6 @@ $(TOOLS): %$(PINTOOL_SUFFIX) : %.o
 clean:
 	rm -rf $(OBJDIR)
 
-
 else # new pin versions
 
 override PIN_ROOT = /opt/pin
