@@ -80,6 +80,8 @@ fi
 
 dir=$(pwd)
 cd $(dirname $0)
+mkdir figure/
+lstopo figure/topo.png
 Rscript plot.R $dir $PROG $save $bw
 # Clean and copi figures
 rm -rf $dir/figure
