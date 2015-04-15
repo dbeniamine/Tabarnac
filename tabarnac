@@ -81,7 +81,7 @@ then
     echo -e "\n\n## running pin: $PROGARGS"
 
     set -x
-    time -p pin -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so ${@}
+    time -p pin -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so -- $PROGARGS
     set +x
 
     # sort output page csv's according to page address
@@ -90,7 +90,7 @@ then
     done
 fi
 
-if $plots
+if $plot
 then
     dir=$(pwd)
     cd $(dirname $0)
@@ -101,4 +101,5 @@ then
     rm -rf $dir/figure
     mv ./figure $dir/
     cd -
+    mv ./$PROG*.pdf ./figure/
 fi
