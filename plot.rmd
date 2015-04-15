@@ -38,8 +38,6 @@ minRatio <- 10000 # Structs responsible of less than 1/minRation access will be 
 base=paste(path,"/",name, sep="")
 structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
 acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
-# Information not neequired
-acc$firstacc <- NULL
 # Merge duplicate addresses
 acct <- data.table(acc)
 acct <- acct[,lapply(.SD,sum),by=c("addr","type")]
@@ -234,6 +232,7 @@ Read/Write for every data structures by each threads.
 
 ```{r ByStructsRWPlot, echo=F, fig.height=20, fig.width=20}
 df <- subset(structsStats, structsStats$Thread!="total")
+df <- subset(df, df$Thread!="firstacc")
 p <- ggplot(subset(df, df$Struct!="total"), aes(x=Struct,y=NbAccess,fill=Type))
 p <- p +geom_bar(stat="identity")
 p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(df$Thread))))
@@ -327,6 +326,7 @@ for(str in unique(acc$struct))
     remove(acct)
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
+    ndf <- subset(ndf, ndf$Thread!="firstacc")
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value) ) + geom_line()
     p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) + xlab("Page number") + ylab("Number of Accesses")
@@ -358,7 +358,35 @@ mapped according to the first touch policy aka near to the first thread which
 use it. The following plot show the repartition of the first touch over the
 structures.
 
-**TODO**
+```{r firsttouch, echo=T}
+plotname <- "First access distribution for structure"
+for(str in unique(acc$struct))
+{
+    # Create a df addr th num access
+    sacc <- subset(acc, acc$struct==str)
+    ndf <- sacc[,c("addr", "firstacc")]
+    #   # Plot the distribution
+    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_line()
+    p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) + xlab("Page number") + ylab("Thread Id")
+    if(bw)
+    {
+        p <- p + theme_bw()
+    }
+    p <- p + theme_update(axis.text.x=element_text(size=10),axis.text.y=element_text(size=10))
+    p <- p + theme_update(axis.title=element_text(size=15), title=element_text(size=12))
+    show(p)
+    if(save)
+    {
+        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""))
+    }
+}
+remove(ndf)
+remove(p)
+remove(plotname)
+remove(sacc)
+remove(str)
+
+```
 
 R/W patterns
 ------------
