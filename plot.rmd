@@ -34,6 +34,7 @@ stack is mapped on the same node as the thread its belong (man numa)
 
 
 ```{r Parsing, echo=F}
+show(bw)
 #Parse csv files
 insist(ggplot2)
 insist(plyr)
@@ -102,7 +103,7 @@ for(page in unique(acc$addr))
         }
     }
     #if(!OK)
-        #show(paste(cpt,addr,"after struct", structs[nrow(structs),]$name))
+    #show(paste(cpt,addr,"after struct", structs[nrow(structs),]$name))
     snames <- c(snames,structs$name[cur],structs$name[cur])
     #cpt <- cpt+1
 }
@@ -138,13 +139,13 @@ kind of optimization.
 *Note:*
 
 + If all the data structures are name AnonymousStruct#n, you should try to
-recompile your program with the "-g" option and re run TABARNAC.
+  recompile your program with the "-g" option and re run TABARNAC.
 + Some structures might be ignored by TABARNAC
     + Because no access have been detected: this happens with structures
-     smaller than one page (usually 4ko).
+      smaller than one page (usually 4ko).
     + Because the structure is not used enough: to keep the figures clear, we
-     automatically remove the structures responsible for less than 1 one
-     access over 10000.
+      automatically remove the structures responsible for less than 1 one
+      access over 10000.
 
 ```{r GeneratingStructData, echo=F}
 # Construct the new dataframe
@@ -215,7 +216,11 @@ structs <- subset(structs, structs$name!="Others")
 acc <- subset(acc,acc$struct!="Others")
 p <- ggplot(structs, aes(x=name,y=sz, fill=name))
 p <- p + geom_bar(stat="identity")
-p <- p + ggtitle(paste("Structures size for", name)) + xlab("Structure name") + ylab("Size (bytes)")
+p <- p + xlab("Structure name") + ylab("Size (bytes)")
+if(titles)
+{
+    p <- p + ggtitle(paste("Structures size for", name)) 
+}
 p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
 p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
 p <- p + theme(legend.position="none")
@@ -242,7 +247,10 @@ df <- subset(df, df$Thread!="firstacc")
 p <- ggplot(subset(df, df$Struct!="total"), aes(x=Struct,y=NbAccess,fill=Type))
 p <- p +geom_bar(stat="identity")
 p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(df$Thread))))
-p <- p + ggtitle(paste("Number of access per thread and structures for", name))
+if(titles)
+{
+    p <- p + ggtitle(paste("Number of access per thread and structures for", name))
+}
 p <- p + xlab("Structure name") + ylab("Number of accesses")
 p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
 p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
@@ -264,7 +272,10 @@ remove(p)
 df <- subset(structsStats, structsStats$Struct!="total")
 p <- ggplot(subset(df, df$Thread=="total"), aes(x=Struct,y=NbAccess,fill=Type))
 p <- p +geom_bar(stat="identity")
-p <- p + ggtitle(paste("Number of access per thread and structures for", name))
+if(titles)
+{
+    p <- p + ggtitle(paste("Number of access per thread and structures for", name))
+}
 p <- p + xlab("Structure name") + ylab("Number of accesses")
 p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
 p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
@@ -342,14 +353,18 @@ for(str in unique(acc$struct))
     ndf <- subset(ndf, ndf$Thread!="firstacc")
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value) ) + geom_line()
-    p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) + xlab("Page number") + ylab("Number of Accesses")
+    p <- p + xlab("Page number") + ylab("Number of Accesses")
+    p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
+    p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
+    if(titles)
+    {
+        p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) 
+    }
     if(bw)
     {
         p <- p + theme_bw()
     }
     p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(ndf$Thread))))
-    p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
-    p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
     show(p)
     if(save)
     {
@@ -380,13 +395,17 @@ for(str in unique(acc$struct))
     ndf <- sacc[,c("addr", "firstacc")]
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_line()
-    p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) + xlab("Page number") + ylab("Thread Id")
+    if(titles)
+    {
+        p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
+    }
+    p <- p + xlab("Page number") + ylab("Thread Id")
+    p <- p + theme_update(axis.text.x=element_text(size=10),axis.text.y=element_text(size=10))
+    p <- p + theme_update(axis.title=element_text(size=15), title=element_text(size=12))
     if(bw)
     {
         p <- p + theme_bw()
     }
-    p <- p + theme_update(axis.text.x=element_text(size=10),axis.text.y=element_text(size=10))
-    p <- p + theme_update(axis.title=element_text(size=15), title=element_text(size=12))
     show(p)
     if(save)
     {

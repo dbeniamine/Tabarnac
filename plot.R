@@ -36,5 +36,6 @@ path <- args[1]
 name  <- args[2]
 save  <-  args[3]
 bw  <-  args[4]
+titles  <-  args[5]
 output <- paste(path, '/', name, '-plots.html', sep='')
 knit2html("plot.rmd", output)

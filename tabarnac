@@ -21,15 +21,25 @@ usage()
     echo "Options:"
     echo "-b            Do black and white plots"
     echo "-s            Save plots (pdf files)"
+    echo "-t            Disable titles in figures"
+    echo "-r            Run only (do not plot)"
     echo "-p bench      Do not run, plot only for benchmark named benc"
     echo "-h            pDisplay this help and quit"
 }
 
 run=true
+plot=true
+titles=T
 bw=F
 save=F
-while getopts "bshp:" opt; do
+while getopts "trbshp:" opt; do
     case $opt in
+        r)
+            plot=false
+            ;;
+        t)
+            titles=F
+            ;;
         b)
             bw="T"
             ;;
@@ -70,7 +80,9 @@ then
     # finally, run pin
     echo -e "\n\n## running pin: $PROGARGS"
 
+    set -x
     time -p pin -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so ${@}
+    set +x
 
     # sort output page csv's according to page address
     for f in $PROG.*.page.csv; do
@@ -78,12 +90,15 @@ then
     done
 fi
 
-dir=$(pwd)
-cd $(dirname $0)
-mkdir figure/
-lstopo figure/topo.png
-Rscript plot.R $dir $PROG $save $bw
-# Clean and copi figures
-rm -rf $dir/figure
-mv ./figure $dir/
-cd -
+if $plots
+then
+    dir=$(pwd)
+    cd $(dirname $0)
+    mkdir figure/
+    lstopo figure/topo.png
+    Rscript plot.R $dir $PROG $save $bw $titles
+    # Clean and copi figures
+    rm -rf $dir/figure
+    mv ./figure $dir/
+    cd -
+fi
