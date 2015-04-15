@@ -22,10 +22,16 @@ You should obtain best performances by doing one of the following solutions:
   thread can work on local copy. *Warning: * you will need to decide how to
   handle write.
 
+If not specified otherwise, data are mapped according to the first touch
+algorithm which means as close as possible to the first thread that acces
+them. Therefore initialization by one thread before parrallel computation
+might result on low performances.
+
 *Beware of the stack:*  Stack is designed for private data, remote stack access
 (for instance T0 accessing Stack#2) might be very slow, avoid them as much as
 possible. If your application uses intensively the stack, unsure that the
 stack is mapped on the same node as the thread its belong (man numa)
+
 
 ```{r Parsing, echo=F}
 #Parse csv files
@@ -286,6 +292,13 @@ TABARNAC tries to detect automatically performance issues:
 ```{r AutoDetect, echo=F}
 show("Nothing detected: not implemented yet")
 ```
+
+**TODO**
+
++ Remote stack acc
++ All to all
++ First touch by one th
+
 
 + Yes:
     + what , where , how to fix it ?
