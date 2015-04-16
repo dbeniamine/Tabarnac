@@ -34,7 +34,6 @@ stack is mapped on the same node as the thread its belong (man numa)
 
 
 ```{r Parsing, echo=F}
-show(bw)
 #Parse csv files
 insist(ggplot2)
 insist(plyr)
@@ -221,8 +220,8 @@ if(titles)
 {
     p <- p + ggtitle(paste("Structures size for", name))
 }
-p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
-p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
+p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
+p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
 p <- p + theme(legend.position="none")
 if(bw)
 {
@@ -231,8 +230,7 @@ if(bw)
 }
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),
-           width=width, height=height)
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf",sep=""),scale=imgsc)
 }
 show(p)
 remove(p)
@@ -246,15 +244,16 @@ Read/Write for every data structures by each threads.
 df <- subset(structsStats, structsStats$Thread!="total")
 df <- subset(df, df$Thread!="firstacc")
 p <- ggplot(subset(df, df$Struct!="total"), aes(x=Struct,y=NbAccess,fill=Type))
-p <- p +geom_bar(stat="identity")
+p <- p + geom_bar(stat="identity")
 p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(df$Thread))))
+p <- p + theme(strip.text.y = element_text(size=20, face="bold"))
 if(titles)
 {
     p <- p + ggtitle(paste("Number of access per thread and structures for", name))
 }
 p <- p + xlab("Structure name") + ylab("Number of accesses")
-p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
-p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
+p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
+p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
 p <- p + theme(legend.position="bottom",legend.text = element_text(size = 16))
 if(bw)
 {
@@ -263,8 +262,7 @@ if(bw)
 }
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),
-           width=width, height=height)
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),scale=imgsc)
 }
 show(p)
 remove(p)
@@ -279,8 +277,8 @@ if(titles)
     p <- p + ggtitle(paste("Number of access per thread and structures for", name))
 }
 p <- p + xlab("Structure name") + ylab("Number of accesses")
-p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
-p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
+p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
+p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
 p <- p + theme(legend.position="bottom",legend.text = element_text(size = 16))
 if(bw)
 {
@@ -289,8 +287,7 @@ if(bw)
 }
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),
-           width=width, height=height)
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),scale=imgsc)
 }
 show(p)
 remove(p)
@@ -335,7 +332,7 @@ access it. It provides several important informations for optimizations:
       structures
     + Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
 
-```{r Distribution, echo=F, fig.height=20, fig.width=20}
+```{r Distribution, echo=F, fig.height=18, fig.width=20}
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -355,10 +352,12 @@ for(str in unique(acc$struct))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value) ) + geom_line()
-    p <- p + xlab("Page number") + ylab("Number of Accesses")
-    p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
-    p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
+    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value/1000) ) + geom_line()
+    p <- p + xlab("Page number") + ylab("Number of Accesses (x10^3)")
+    p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(ndf$Thread))))
+    p <- p + theme(strip.text.y = element_text(face="bold"))
+    #p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
+    #p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
@@ -367,13 +366,10 @@ for(str in unique(acc$struct))
     {
         p <- p + theme_bw()
     }
-    p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(ndf$Thread))))
     show(p)
     if(save)
     {
-        ggsave(paste(path, "/",name,"_", str_replace_all(
-            paste(plotname, str), " ", "_"),".pdf", sep=""),
-               width=width, height=height)
+        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""),scale=imgsc)
     }
 }
 remove(ndf)
@@ -395,7 +391,7 @@ whole structure which is generally a bad idead on NUMA machines, you should
 try to split the initialization such that each thread is responsible for a
 part.
 
-```{r firsttouch, echo=T}
+```{r firsttouch, echo=F}
 plotname <- "First access distribution for structure"
 for(str in unique(acc$struct))
 {
@@ -418,9 +414,7 @@ for(str in unique(acc$struct))
     show(p)
     if(save)
     {
-        ggsave(paste(path, "/",name,"_", str_replace_all(
-            paste(plotname, str), " ", "_"),".pdf", sep=""),
-               width=width, height=height)
+        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""),scale=imgsc)
     }
 }
 remove(ndf)
