@@ -385,6 +385,10 @@ Most of the time when one run an application on a NUMA machine, data are
 mapped according to the first touch policy aka near to the first thread which
 use it. The following plot show the repartition of the first touch over the
 structures.
+If the plot is a straight line, it means that one thread is initializating the
+whole structure which is generally a bad idead on NUMA machines, you should
+try to split the initialization such that each thread is responsible for a
+part.
 
 ```{r firsttouch, echo=T}
 plotname <- "First access distribution for structure"
