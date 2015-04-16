@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2015  Beniamine, David <David@Beniamine.net>
  * Author: Beniamine, David <David@Beniamine.net>
+ * Author: Diener, Matthias <mdiener@inf.ufrgs.br>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
