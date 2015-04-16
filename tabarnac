@@ -24,6 +24,8 @@ usage()
     echo "-t            Disable titles in figures"
     echo "-r            Run only (do not plot)"
     echo "-p bench      Do not run, plot only for benchmark named benc"
+    echo "-w width      Set the figure width, imply -s"
+    echo "-H height     Set the figure height, imply -s"
     echo "-h            pDisplay this help and quit"
 }
 
@@ -32,7 +34,9 @@ plot=true
 titles=T
 bw=F
 save=F
-while getopts "trbshp:" opt; do
+width=12
+height=12
+while getopts "trbshpw:H::" opt; do
     case $opt in
         r)
             plot=false
@@ -48,6 +52,14 @@ while getopts "trbshp:" opt; do
             PROG="$OPTARG"
             ;;
         s)
+            save="T"
+            ;;
+        w)
+            width="$OPTARG"
+            save="T"
+            ;;
+        H)
+            height="$OPTARG"
             save="T"
             ;;
         h)
@@ -96,7 +108,7 @@ then
     cd $(dirname $0)
     mkdir figure/
     lstopo figure/topo.png
-    Rscript plot.R $dir $PROG $save $bw $titles
+    Rscript plot.R $dir $PROG $save $bw $titles $width $height
     # Clean and copi figures
     rm -rf $dir/figure
     mv ./figure $dir/

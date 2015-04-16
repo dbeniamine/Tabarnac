@@ -219,7 +219,7 @@ p <- p + geom_bar(stat="identity")
 p <- p + xlab("Structure name") + ylab("Size (bytes)")
 if(titles)
 {
-    p <- p + ggtitle(paste("Structures size for", name)) 
+    p <- p + ggtitle(paste("Structures size for", name))
 }
 p <- p + theme_update(axis.text.x=element_text(size=22),axis.text.y=element_text(size=20))
 p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
@@ -231,7 +231,8 @@ if(bw)
 }
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),
+           width=width, height=height)
 }
 show(p)
 remove(p)
@@ -262,7 +263,8 @@ if(bw)
 }
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),
+           width=width, height=height)
 }
 show(p)
 remove(p)
@@ -287,7 +289,8 @@ if(bw)
 }
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""))
+    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),
+           width=width, height=height)
 }
 show(p)
 remove(p)
@@ -358,7 +361,7 @@ for(str in unique(acc$struct))
     p <- p + theme_update(axis.title=element_text(size=25), title=element_text(size=25))
     if(titles)
     {
-        p <- p + ggtitle(paste(plotname,' "', str,'"',sep="")) 
+        p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
     }
     if(bw)
     {
@@ -368,7 +371,9 @@ for(str in unique(acc$struct))
     show(p)
     if(save)
     {
-        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""))
+        ggsave(paste(path, "/",name,"_", str_replace_all(
+            paste(plotname, str), " ", "_"),".pdf", sep=""),
+               width=width, height=height)
     }
 }
 remove(ndf)
@@ -413,7 +418,9 @@ for(str in unique(acc$struct))
     show(p)
     if(save)
     {
-        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""))
+        ggsave(paste(path, "/",name,"_", str_replace_all(
+            paste(plotname, str), " ", "_"),".pdf", sep=""),
+               width=width, height=height)
     }
 }
 remove(ndf)

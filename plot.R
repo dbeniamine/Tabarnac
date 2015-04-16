@@ -31,11 +31,14 @@ insist  <-  function(name){
 insist(methods)
 insist(knitr)
 # Set variables
-args <- commandArgs(TRUE)
-path <- args[1]
-name  <- args[2]
-save  <-  args[3]
-bw  <-  args[4]
-titles  <-  args[5]
+args   <- commandArgs(TRUE)
+path   <- args[1]
+name   <- args[2]
+save   <-  args[3]
+bw     <-  args[4]
+titles <-  args[5]
+width  <-  args[6]
+height <-  args[7]
 output <- paste(path, '/', name, '-plots.html', sep='')
+# Do the work
 knit2html("plot.rmd", output)
