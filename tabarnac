@@ -23,6 +23,8 @@ usage()
     echo "-s            Save plots (pdf files)"
     echo "-t            Disable titles in figures"
     echo "-r            Run only (do not plot)"
+    echo "-i            Do not ignore smally used structures. This might
+                        produce a hard to read output"
     echo "-p bench      Do not run, plot only for benchmark named benc"
     echo "-S scale      Set the scale for saved figures implies -s"
     echo "-h            pDisplay this help and quit"
@@ -33,9 +35,13 @@ plot=true
 titles=T
 bw=F
 save=F
+ignore=T
 scale=1
-while getopts "trbshp:S:" opt; do
+while getopts "trbshp:S:i" opt; do
     case $opt in
+        i)
+            ignore=F
+            ;;
         r)
             plot=false
             ;;
@@ -102,7 +108,7 @@ then
     cd $(dirname $0)
     mkdir figure/
     lstopo figure/topo.png
-    Rscript plot.R $dir $PROG $save $bw $titles $scale
+    Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore
     # Clean and copi figures
     rm -rf $dir/figure
     mv ./figure $dir/

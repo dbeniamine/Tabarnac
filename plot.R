@@ -38,6 +38,7 @@ save   <-  args[3]
 bw     <-  args[4]
 titles <-  args[5]
 imgsc  <-  as.numeric(as.character(args[6]))
+ignore <-  args[7]
 output <- paste(path, '/', name, '-plots.html', sep='')
 # Do the work
 knit2html("plot.rmd", output)

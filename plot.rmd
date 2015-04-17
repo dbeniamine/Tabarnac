@@ -128,9 +128,9 @@ Topology
 Data structure usages
 ---------------------
 
-The following plots show the structures sizes, this information can give a
-hint on the importance of the different data structures and on the possible
-kind of optimization.
+The following plots show the structures sizes in pages (one page = 4096 bytes)
+this information can give a hint on the importance of the different data
+structures and on the possible kind of optimization.
 
 *Note:*
 
@@ -141,7 +141,7 @@ kind of optimization.
       smaller than one page (usually 4ko).
     + Because the structure is not used enough: to keep the figures clear, we
       automatically remove the structures responsible for less than 1 one
-      access over 10000.
+      access over 10000. This can be cancelled bu running tabarnac -i -p expname
 
 ```{r GeneratingStructData, echo=F}
 # Construct the new dataframe
@@ -193,7 +193,7 @@ for(s in unique(structsStats$Struct))
 {
     sacc <- subset(structsStats, structsStats$Struct==s)
     sacc <- subset(sacc, sacc$Thread=="total")
-    if(sum(sacc$NbAccess) < maxAcc/minRatio)
+    if(ignore && sum(sacc$NbAccess) < maxAcc/minRatio)
     {
         show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
         structs <- subset(structs, structs$name!=s)
@@ -207,13 +207,14 @@ remove(sacc)
 remove(minRatio)
 facet_col <- floor(sqrt(length(unique(structsStats$Thread))))
 facet_size <- 5*facet_col
+pg_size <- 4096
 ```
 ```{r ShowStructSize, echo=F}
 structs <- subset(structs, structs$name!="Others")
 acc <- subset(acc,acc$struct!="Others")
-p <- ggplot(structs, aes(x=name,y=sz, fill=name))
+p <- ggplot(structs, aes(x=name,y=sz/4096, fill=name))
 p <- p + geom_bar(stat="identity")
-p <- p + xlab("Structure name") + ylab("Size (bytes)")
+p <- p + xlab("Structure name") + ylab("Size (pages)")
 if(titles)
 {
     p <- p + ggtitle(paste("Structures size for", name))
@@ -350,7 +351,7 @@ for(str in unique(acc$struct))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value/1000) ) + geom_line()
+    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value/1000) ) + geom_point()
     p <- p + xlab("Page number") + ylab("Number of Accesses (x10^3)")
     p <- p + facet_wrap(~Thread, ncol=facet_col)
     if(titles)
@@ -397,7 +398,7 @@ for(str in unique(acc$struct))
     sacc <- subset(acc, acc$struct==str)
     ndf <- sacc[,c("addr", "firstacc")]
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_line()
+    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_point()
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
