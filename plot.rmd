@@ -80,7 +80,6 @@ for(page in unique(acc$addr))
         if(addr < structs[i,]$start)
         {
             #Addr is between two structs
-            #show(paste(cpt,addr,"before struct", structs[i,]$name))
             OK <- T
             if( structs[1,]$start==0)
                 structs[1,]$start <- addr
@@ -91,7 +90,6 @@ for(page in unique(acc$addr))
             if(addr >= structs[i,]$start && addr < structs[i,]$end)
             {
                 # Addr is in the next struct
-                #show(paste(cpt,addr,"in struct", structs[i,]$name))
                 OK <- T
                 cur <- i
             }else
@@ -102,7 +100,6 @@ for(page in unique(acc$addr))
         }
     }
     #if(!OK)
-    #show(paste(cpt,addr,"after struct", structs[nrow(structs),]$name))
     snames <- c(snames,structs$name[cur],structs$name[cur])
     #cpt <- cpt+1
 }
@@ -208,9 +205,10 @@ remove(maxAcc)
 remove(s)
 remove(sacc)
 remove(minRatio)
+facet_col <- floor(sqrt(length(unique(structsStats$Thread))))
+facet_size <- 5*facet_col
 ```
-
-```{r ShowStructSize, echo=F, fig.height=8, fig.width=15}
+```{r ShowStructSize, echo=F}
 structs <- subset(structs, structs$name!="Others")
 acc <- subset(acc,acc$struct!="Others")
 p <- ggplot(structs, aes(x=name,y=sz, fill=name))
@@ -220,14 +218,14 @@ if(titles)
 {
     p <- p + ggtitle(paste("Structures size for", name))
 }
-p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
-p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
-p <- p + theme(legend.position="none")
 if(bw)
 {
     p <- p + theme_bw()
+    p <- p + theme(panel.border = element_blank(),
+                   strip.background = element_rect(colour="#CCCCCC"))
     p <- p + scale_fill_grey()
 }
+p <- p + theme(legend.position="none")
 if(save)
 {
     ggsave(filename=paste(path,"/",name,"_structs_size.pdf",sep=""),scale=imgsc)
@@ -240,35 +238,34 @@ remove(structs)
 The following visualization shows the number of access and the ratio
 Read/Write for every data structures by each threads.
 
-```{r ByStructsRWPlot, echo=F, fig.height=20, fig.width=20}
+```{r ByStructsRWPlot, echo=F, fig.width=facet_size, fig.height=facet_size}
 df <- subset(structsStats, structsStats$Thread!="total")
 df <- subset(df, df$Thread!="firstacc")
 p <- ggplot(subset(df, df$Struct!="total"), aes(x=Struct,y=NbAccess,fill=Type))
 p <- p + geom_bar(stat="identity")
-p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(df$Thread))))
-p <- p + theme(strip.text.y = element_text(size=20, face="bold"))
+p <- p + facet_wrap(~Thread, ncol=facet_col)
 if(titles)
 {
     p <- p + ggtitle(paste("Number of access per thread and structures for", name))
 }
 p <- p + xlab("Structure name") + ylab("Number of accesses")
-p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
-p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
-p <- p + theme(legend.position="bottom",legend.text = element_text(size = 16))
 if(bw)
 {
     p <- p + theme_bw()
+    p <- p + theme(panel.border = element_blank(),
+                   strip.background = element_rect(colour="#CCCCCC"))
     p <- p + scale_fill_grey()
 }
+p <- p + theme(legend.position="bottom")
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),scale=imgsc)
+    ggsave(filename=paste(path,"/",name,"_structs_rw.pdf", sep=""),scale=imgsc)
 }
 show(p)
 remove(p)
 ```
 
-```{r TotalRWPlot, echo=F, fig.height=8, fig.width=15}
+```{r TotalRWPlot, echo=F}
 df <- subset(structsStats, structsStats$Struct!="total")
 p <- ggplot(subset(df, df$Thread=="total"), aes(x=Struct,y=NbAccess,fill=Type))
 p <- p +geom_bar(stat="identity")
@@ -277,14 +274,14 @@ if(titles)
     p <- p + ggtitle(paste("Number of access per thread and structures for", name))
 }
 p <- p + xlab("Structure name") + ylab("Number of accesses")
-p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
-p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
-p <- p + theme(legend.position="bottom",legend.text = element_text(size = 16))
 if(bw)
 {
     p <- p + theme_bw()
+    p <- p + theme(panel.border = element_blank(),
+                   strip.background = element_rect(colour="#CCCCCC"))
     p <- p + scale_fill_grey()
 }
+p <- p + theme(legend.position="bottom")
 if(save)
 {
     ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),scale=imgsc)
@@ -332,7 +329,8 @@ access it. It provides several important informations for optimizations:
       structures
     + Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
 
-```{r Distribution, echo=F, fig.height=18, fig.width=20}
+
+```{r Distribution, echo=F, fig.width=facet_size, fig.height=facet_size}
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -354,10 +352,7 @@ for(str in unique(acc$struct))
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value/1000) ) + geom_line()
     p <- p + xlab("Page number") + ylab("Number of Accesses (x10^3)")
-    p <- p + facet_wrap(~Thread, ncol=sqrt(length(unique(ndf$Thread))))
-    p <- p + theme(strip.text.y = element_text(face="bold"))
-    #p <- p + theme_update(axis.text.x=element_text(size=20),axis.text.y=element_text(size=20))
-    #p <- p + theme_update(axis.title=element_text(size=20), title=element_text(size=20))
+    p <- p + facet_wrap(~Thread, ncol=facet_col)
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
@@ -365,6 +360,9 @@ for(str in unique(acc$struct))
     if(bw)
     {
         p <- p + theme_bw()
+        # BW theme without borders
+        p <- p + theme(panel.border = element_blank(),
+                       strip.background = element_rect(colour="#CCCCCC"))
     }
     show(p)
     if(save)
@@ -405,11 +403,11 @@ for(str in unique(acc$struct))
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
     }
     p <- p + xlab("Page number") + ylab("Thread Id")
-    p <- p + theme_update(axis.text.x=element_text(size=10),axis.text.y=element_text(size=10))
-    p <- p + theme_update(axis.title=element_text(size=15), title=element_text(size=12))
     if(bw)
     {
         p <- p + theme_bw()
+        p <- p + theme(panel.border = element_blank(),
+                       strip.background = element_rect(colour="#CCCCCC"))
     }
     show(p)
     if(save)
@@ -441,5 +439,7 @@ remove(path)
 remove(structsStats)
 remove(acc)
 remove(bw)
-#ls()
+remove(facet_size)
+remove(facet_col)
+ls()
 ```
