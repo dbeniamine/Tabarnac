@@ -107,7 +107,7 @@ then
     dir=$(pwd)
     cd $(dirname $0)
     mkdir figure/
-    lstopo figure/topo.png
+    lstopo --no-io figure/topo.png
     Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore
     # Clean and copi figures
     rm -rf $dir/figure
