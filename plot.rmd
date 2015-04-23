@@ -142,6 +142,8 @@ structures and on the possible kind of optimization.
     + Because the structure is not used enough: to keep the figures clear, we
       automatically remove the structures responsible for less than 1 one
       access over 10000. This can be cancelled bu running tabarnac -i -p expname
++ After ignoring these structures, some thread might not be responsible of any
+  access. Such thread will be ignored except if the -i option is used.
 
 ```{r GeneratingStructData, echo=F}
 # Construct the new dataframe
@@ -193,20 +195,44 @@ for(s in unique(structsStats$Struct))
 {
     sacc <- subset(structsStats, structsStats$Struct==s)
     sacc <- subset(sacc, sacc$Thread=="total")
-    if(ignore==T && sum(sacc$NbAccess) < maxAcc/minRatio)
+    if(ignore)
     {
-        show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
-        structs <- subset(structs, structs$name!=s)
-        structsStats <- subset(structsStats, structsStats$Struct!=s)
-        acc <- subset(acc,acc$struct!=s)
+        if(sum(sacc$NbAccess) < maxAcc/minRatio)
+        {
+            show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
+            structs <- subset(structs, structs$name!=s)
+            structsStats <- subset(structsStats, structsStats$Struct!=s)
+            acc <- subset(acc,acc$struct!=s)
+        }
     }
 }
 remove(maxAcc)
 remove(s)
 remove(sacc)
 remove(minRatio)
-facet_col <- floor(sqrt(length(unique(structsStats$Thread))))
-facet_size <- 6*facet_col
+if(ignore)
+{
+    for(t in unique(structsStats$Thread))
+    {
+        if(t!="total" && t!="firstacc")
+        {
+            if(sum(subset(structsStats, structsStats$Thread==t & structsStats$Struct!="total")$NbAccess)==0)
+            {
+                show(paste("Thread",t,"ignored as it didn't used any of the remaining structures"))
+                structsStats <- subset(structsStats, structsStats$Thread!=t)
+                acc <- acc[,-match(t, names(acc))]
+            }
+        }
+    }
+}
+
+nth  <- length(unique(structsStats$Thread))-2 # don't count the total and firstacc
+facet_col <- min(3,floor(sqrt(nth)))
+facet_line <- nth/facet_col
+facet_width <- 5.5*facet_col
+facet_height <-5.5*facet_line
+remove(nth)
+remove(facet_line)
 pg_size <- 4096
 ```
 ```{r ShowStructSize, echo=F}
@@ -239,7 +265,7 @@ remove(structs)
 The following visualization shows the number of access and the ratio
 Read/Write for every data structures by each threads.
 
-```{r ByStructsRWPlot, echo=F, fig.width=facet_size, fig.height=facet_size}
+```{r ByStructsRWPlot, echo=F, fig.width=facet_width, fig.height=facet_height}
 df <- subset(structsStats, structsStats$Thread!="total")
 df <- subset(df, df$Thread!="firstacc")
 p <- ggplot(subset(df, df$Struct!="total"), aes(x=Struct,y=NbAccess,fill=Type))
@@ -266,13 +292,23 @@ show(p)
 remove(p)
 ```
 
+Plots are not precise enough to say if a structure is not used, read or write
+by a specific thread, so here is table showing structures not read are written
+by some threads:
+
+```{r UnusedStructs, echo=F}
+show(subset(df, df$NbAccess==0))
+```
+
+Finally a global view of the read write pattern by structure:
+
 ```{r TotalRWPlot, echo=F}
 df <- subset(structsStats, structsStats$Struct!="total")
 p <- ggplot(subset(df, df$Thread=="total"), aes(x=Struct,y=NbAccess,fill=Type))
 p <- p +geom_bar(stat="identity")
 if(titles)
 {
-    p <- p + ggtitle(paste("Number of access per thread and structures for", name))
+    p <- p + ggtitle(paste("Total number of access per structures", name))
 }
 p <- p + xlab("Structure name") + ylab("Number of accesses")
 if(bw)
@@ -331,7 +367,7 @@ access it. It provides several important informations for optimizations:
     + Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
 
 
-```{r Distribution, echo=F, fig.width=facet_size, fig.height=facet_size}
+```{r Distribution, echo=F, fig.width=facet_width, fig.height=facet_height}
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -440,7 +476,8 @@ remove(path)
 remove(structsStats)
 remove(acc)
 remove(bw)
-remove(facet_size)
+remove(facet_width)
+remove(facet_height)
 remove(facet_col)
 remove(args)
 remove(ignore)

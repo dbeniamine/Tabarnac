@@ -35,12 +35,12 @@ plot=true
 titles=T
 bw=F
 save=F
-ignore=T
+ignore=TRUE
 scale=1
 while getopts "trbshp:S:i" opt; do
     case $opt in
         i)
-            ignore=F
+            ignore=FALSE
             ;;
         r)
             plot=false
