@@ -2,17 +2,17 @@
  * Copyright (C) 2015  Beniamine, David <David@Beniamine.net>
  * Author: Beniamine, David <David@Beniamine.net>
  * Author: Diener, Matthias <mdiener@inf.ufrgs.br>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -355,15 +355,66 @@ VOID mythread(VOID * arg)
 
 //retrieve structures names address and size
 int getStructs(const char* file);
+string get_struct_name(string str, int ln, string fname, int rec);
 
-string get_struct_name(string str)
+string get_complex_struct_name(int ln, string fname)
 {
+    ifstream fstr(fname);
+    int lastmalloc=0;
+    // Find the real malloc line
+    string line,allocstr;
+    for(int i=0; i< ln; ++i)
+    {
+        getline(fstr, line);
+        if(line.find("alloc")!=string::npos)
+        {
+            allocstr=line;
+            lastmalloc=i;
+        }
+    }
+    fstr.close();
+    if(allocstr.find("=")==string::npos)
+    {
+        /*
+         * Allocation split among several lines,
+         * we assume it looks like
+         *  foo =
+         *      malloc(bar)
+         *  Note:
+         *      if foo and '=' are on different lines, we will give up
+         */
+        fstr.open(fname);
+        for(int i=0; i< lastmalloc; ++i)
+        {
+            getline(fstr, line);
+            if(line.find("=")!=string::npos)
+                allocstr=line;
+        }
+        fstr.close();
+    }
+    //Now that we have the good line, extract the struct name
+    return get_struct_name(allocstr, ln, fname, 1/*forbid recursive calls*/);
+}
+
+string get_struct_name(string str, int ln, string fname, int hops)
+{
+    if( str.find(string("alloc"))==string::npos && hops==0)
+        return get_complex_struct_name(ln, fname); //Return Ip is not malloc line
     // Remove everything after first '='
     string ret=str.substr(0,str.find('='));
-    // Keep the last word
-    ret=ret.substr(ret.find_last_of(' ')+1);
-    //Remove preprending '*' if any
-    return ret.substr(ret.find('*')+1);
+    //remove trailing whitespaces
+    while(ret.back()==' ')
+        ret.pop_back();
+    // Take the last word
+    ret=ret.substr(ret.find_last_of(string(" )*"))+1);
+    // Our search have failed, it will be an anonymous malloc
+    if(ret.compare("")==0)
+    {
+        cerr << "Unable to find a suitable alloc name for file  "
+            << fname << " l: " << ln << endl;
+        return string("AnonymousStruct");
+    }
+    return ret;
 }
 
 VOID PREMALLOC(ADDRINT retip, THREADID tid, ADDRINT sz)
@@ -390,7 +441,8 @@ VOID PREMALLOC(ADDRINT retip, THREADID tid, ADDRINT sz)
         {
             for(int i=0; i< ln; ++i)
                 getline(fstr, line);
-            Allocs[id].sym=get_struct_name(line);
+            fstr.close();
+            Allocs[id].sym=get_struct_name(line, ln, fname, 0/*allow recursive calls*/);
         }
         Allocs[id].sz=sz;
         Allocs[id].ended=0;
