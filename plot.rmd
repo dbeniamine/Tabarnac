@@ -155,7 +155,7 @@ for(s in structs$name)
     sumW <- data.frame(colSums(subset(sacc,sacc$type=="W")[-1]))
     if(sumR[nrow(sumR),] ==0  && sumW[nrow(sumW),] ==0)
     {
-        show(paste("structre",s,"ignored: no acces detected"))
+        show(paste("structre",s,"ignored: no accesses detected"))
         structs <- subset(structs, structs$name!=s)
         acc <- subset(acc,acc$struct!=s)
     }
@@ -193,7 +193,7 @@ for(s in unique(structsStats$Struct))
 {
     sacc <- subset(structsStats, structsStats$Struct==s)
     sacc <- subset(sacc, sacc$Thread=="total")
-    if(ignore && sum(sacc$NbAccess) < maxAcc/minRatio)
+    if(ignore==T && sum(sacc$NbAccess) < maxAcc/minRatio)
     {
         show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
         structs <- subset(structs, structs$name!=s)
@@ -206,7 +206,7 @@ remove(s)
 remove(sacc)
 remove(minRatio)
 facet_col <- floor(sqrt(length(unique(structsStats$Thread))))
-facet_size <- 5*facet_col
+facet_size <- 6*facet_col
 pg_size <- 4096
 ```
 ```{r ShowStructSize, echo=F}
@@ -351,7 +351,7 @@ for(str in unique(acc$struct))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value/1000) ) + geom_point()
+    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value/1000) ) + geom_point(pch=3,cex=1)
     p <- p + xlab("Page number") + ylab("Number of Accesses (x10^3)")
     p <- p + facet_wrap(~Thread, ncol=facet_col)
     if(titles)
@@ -398,7 +398,7 @@ for(str in unique(acc$struct))
     sacc <- subset(acc, acc$struct==str)
     ndf <- sacc[,c("addr", "firstacc")]
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_point()
+    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_point(pch=3,cex=1)
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
@@ -442,5 +442,12 @@ remove(acc)
 remove(bw)
 remove(facet_size)
 remove(facet_col)
+remove(args)
+remove(ignore)
+remove(imgsc)
+remove(insist)
+remove(output)
+remove(pg_size)
+remove(titles)
 ls()
 ```
