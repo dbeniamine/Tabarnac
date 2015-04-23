@@ -225,7 +225,7 @@ if(ignore)
         }
     }
 }
-
+remove(t)
 nth  <- length(unique(structsStats$Thread))-2 # don't count the total and firstacc
 facet_col <- min(3,floor(sqrt(nth)))
 facet_line <- nth/facet_col
@@ -486,5 +486,5 @@ remove(insist)
 remove(output)
 remove(pg_size)
 remove(titles)
-ls()
+#ls()
 ```
