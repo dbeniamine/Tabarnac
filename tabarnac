@@ -113,5 +113,5 @@ then
     rm -rf $dir/figure
     mv ./figure $dir/
     cd -
-    mv ./$PROG*.pdf ./figure/ > /dev/null 2>&1
+    mv ./$PROG*.png ./figure/ > /dev/null 2>&1
 fi

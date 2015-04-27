@@ -231,7 +231,6 @@ facet_col <- min(3,floor(sqrt(nth)))
 facet_line <- nth/facet_col
 facet_width <- 5.5*facet_col
 facet_height <-5.5*facet_line
-remove(nth)
 remove(facet_line)
 pg_size <- 4096
 ```
@@ -255,7 +254,7 @@ if(bw)
 p <- p + theme(legend.position="none")
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf",sep=""),scale=imgsc)
+    ggsave(filename=paste(path,"/",name,"_structs_size.png",sep=""),scale=imgsc)
 }
 show(p)
 remove(p)
@@ -286,7 +285,7 @@ if(bw)
 p <- p + theme(legend.position="bottom")
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_rw.pdf", sep=""),scale=imgsc)
+    ggsave(filename=paste(path,"/",name,"_structs_rw.png", sep=""),scale=imgsc)
 }
 show(p)
 remove(p)
@@ -321,7 +320,7 @@ if(bw)
 p <- p + theme(legend.position="bottom")
 if(save)
 {
-    ggsave(filename=paste(path,"/",name,"_structs_size.pdf", sep=""),scale=imgsc)
+    ggsave(filename=paste(path,"/",name,"_structs_size.png", sep=""),scale=imgsc)
 }
 show(p)
 remove(p)
@@ -404,7 +403,7 @@ for(str in unique(acc$struct))
     show(p)
     if(save)
     {
-        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""),scale=imgsc)
+        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".png", sep=""),scale=imgsc)
     }
 }
 remove(ndf)
@@ -435,6 +434,7 @@ for(str in unique(acc$struct))
     ndf <- sacc[,c("addr", "firstacc")]
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_point(pch=3,cex=1)
+    p <- p + ylim(0, nth-1)
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
@@ -449,7 +449,7 @@ for(str in unique(acc$struct))
     show(p)
     if(save)
     {
-        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".pdf", sep=""),scale=imgsc)
+        ggsave(paste(path, "/",name,"_", str_replace_all(paste(plotname, str), " ", "_"),".png", sep=""),scale=imgsc)
     }
 }
 remove(ndf)
@@ -486,5 +486,6 @@ remove(insist)
 remove(output)
 remove(pg_size)
 remove(titles)
+remove(nth)
 #ls()
 ```
