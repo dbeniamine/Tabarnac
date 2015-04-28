@@ -27,23 +27,28 @@ usage()
                         produce a hard to read output"
     echo "-p bench      Do not run, plot only for benchmark named benc"
     echo "-S scale      Set the scale for saved figures implies -s"
+    echo "-R ratio      set plots_width=ratio*plot_height, default=1"
     echo "-h            pDisplay this help and quit"
 }
 
 run=true
 plot=true
 titles=T
+ratio=1
 bw=F
 save=F
 ignore=TRUE
 scale=1
-while getopts "trbshp:S:i" opt; do
+while getopts "trbshp:S:iR:" opt; do
     case $opt in
         i)
             ignore=FALSE
             ;;
         r)
             plot=false
+            ;;
+        R)
+            ratio=$OPTARG
             ;;
         t)
             titles=F
@@ -108,7 +113,7 @@ then
     cd $(dirname $0)
     mkdir figure/
     lstopo --no-io figure/topo.png
-    Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore
+    Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore $ratio
     # Clean and copi figures
     rm -rf $dir/figure
     mv ./figure $dir/

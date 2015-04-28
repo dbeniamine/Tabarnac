@@ -229,12 +229,14 @@ remove(t)
 nth  <- length(unique(structsStats$Thread))-2 # don't count the total and firstacc
 facet_col <- min(3,floor(sqrt(nth)))
 facet_line <- nth/facet_col
-facet_width <- 5.5*facet_col
+facet_width <- 5.5*ratio*facet_col
 facet_height <-5.5*facet_line
+height <- 7
+width <- height*ratio
 remove(facet_line)
 pg_size <- 4096
 ```
-```{r ShowStructSize, echo=F}
+```{r ShowStructSize, echo=F, fig.width=width, fig.height=height}
 structs <- subset(structs, structs$name!="Others")
 acc <- subset(acc,acc$struct!="Others")
 p <- ggplot(structs, aes(x=name,y=sz/4096, fill=name))
@@ -304,7 +306,7 @@ show(subset(df, df$NbAccess==0))
 
 Finally a global view of the read write pattern by structure:
 
-```{r TotalRWPlot, echo=F}
+```{r TotalRWPlot, echo=F, fig.width=width, fig.height=height}
 df <- subset(structsStats, structsStats$Struct!="total")
 p <- ggplot(subset(df, df$Thread=="total"), aes(x=Struct,y=NbAccess/1000,fill=Type))
 p <- p +geom_bar(stat="identity")
@@ -339,7 +341,7 @@ Detected problems
 
 TABARNAC tries to detect automatically performance issues:
 
-```{r AutoDetect, echo=F}
+```{r AutoDetect, echo=F, fig.width=width, fig.height=height}
 show("Nothing detected: not implemented yet")
 ```
 
@@ -431,7 +433,7 @@ whole structure which is generally a bad idead on NUMA machines, you should
 try to split the initialization such that each thread is responsible for a
 part.
 
-```{r firsttouch, echo=F}
+```{r firsttouch, echo=F, fig.width=width, fig.height=height}
 plotname <- "First access distribution for structure"
 for(str in unique(acc$struct))
 {
@@ -441,6 +443,7 @@ for(str in unique(acc$struct))
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_point(pch=3,cex=1)
     p <- p + scale_y_continuous(breaks=seq(0, nth-1, 1))
+    p <- p + ylim(0, nth-1)
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
@@ -451,6 +454,8 @@ for(str in unique(acc$struct))
         p <- p + theme_bw()
         p <- p + theme(panel.border = element_blank(),
                        strip.background = element_rect(colour="#CCCCCC"))
+#                       panel.grid.minor = element_line(colour = "black", linetype="dashed", size = 0.1),
+#                       panel.grid.major = element_line(colour = "black", size = 0.1))
     }
     show(p)
     if(save)
@@ -493,5 +498,6 @@ remove(output)
 remove(pg_size)
 remove(titles)
 remove(nth)
+remove(ratio)
 #ls()
 ```

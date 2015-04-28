@@ -34,11 +34,12 @@ insist(knitr)
 args   <- commandArgs(TRUE)
 path   <- args[1]
 name   <- args[2]
-save   <-  args[3]
-bw     <-  args[4]
-titles <-  args[5]
-imgsc  <-  as.numeric(as.character(args[6]))
-ignore <-  args[7]
+save   <- args[3]
+bw     <- args[4]
+titles <- args[5]
+imgsc  <- as.numeric(as.character(args[6]))
+ignore <- args[7]
+ratio  <- as.numeric(as.character(args[8]))
 output <- paste(path, '/', name, '-plots.html', sep='')
 # Do the work
 knit2html("plot.rmd", output)
