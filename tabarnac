@@ -19,6 +19,7 @@ usage()
 {
     echo "Usage $0 [options] -- cmd args"
     echo "Options:"
+    echo "-d directory  Set pin install directory, default: $PIN_HOME"
     echo "-b            Do black and white plots"
     echo "-s            Save plots (pdf files)"
     echo "-t            Disable titles in figures"
@@ -39,7 +40,7 @@ bw=F
 save=F
 ignore=TRUE
 scale=1
-while getopts "trbshp:S:iR:" opt; do
+while getopts "trbshp:S:iR:d:" opt; do
     case $opt in
         i)
             ignore=FALSE
@@ -70,6 +71,10 @@ while getopts "trbshp:S:iR:" opt; do
         h)
             usage
             exit 0
+            ;;
+        d)
+            export PIN_HOME=$OPTARG
+            echo "export PIN_HOME=$OPTARG"
             ;;
         \?)
             echo "Invalid option : -$OPTARG" >&2

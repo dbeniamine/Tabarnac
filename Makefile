@@ -6,7 +6,11 @@
 
 # If the tool is built out of the kit, PIN_ROOT must be specified in the make invocation and point to the kit root.
 
-MYVER=$(shell /opt/pin/pin -version |grep Pin)
+ifndef PIN_HOME
+PIN_HOME = /opt/pin
+endif
+
+MYVER=$(shell $(PIN_HOME)/pin -version |grep Pin)
 
 ifeq ($(MYVER), Pin 2.10) # old pin versions use different makefile system
 
@@ -14,7 +18,6 @@ TOOL_CXXFLAGS += -Wall -g -std=c++0x -Wno-error
 
 TOOL_ROOTS := tabarnac
 
-PIN_HOME = /opt/pin
 PIN_KIT=$(PIN_HOME)
 KIT=1
 
@@ -45,7 +48,7 @@ clean:
 
 else # new pin versions
 
-override PIN_ROOT = /opt/pin
+override PIN_ROOT = $(PIN_HOME)
 
 ifdef PIN_ROOT
 CONFIG_ROOT := $(PIN_ROOT)/source/tools/Config
@@ -55,7 +58,7 @@ endif
 include $(CONFIG_ROOT)/makefile.config
 
 TOOL_CXXFLAGS += -Wall -g -std=c++0x -Wno-error
-TOOL_LDFLAGS += -Wl,-rpath,/opt/pin/intel64/runtime -lelf
+TOOL_LDFLAGS += -Wl,-rpath,$(PIN_HOME)/intel64/runtime -lelf
 
 
 TEST_TOOL_ROOTS := tabarnac
