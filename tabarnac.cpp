@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  Beniamine, David <David@Beniamine.net>
+ * Copyright (C) 2015  Diener, Matthias <mdiener@inf.ufrgs.br> and Beniamine, David <David@Beniamine.net>
  * Author: Beniamine, David <David@Beniamine.net>
  * Author: Diener, Matthias <mdiener@inf.ufrgs.br>
  *
