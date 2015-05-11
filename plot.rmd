@@ -15,54 +15,66 @@ your applications' memory behavior and how to improve it.
 Before showing any actual visualizations here are a few reminders on efficient
 memory access (to go further see [Drepper's book](TODO)):
 
-1.  Split the memory
+1.  **Split the memory**
 
-Different threads should work on different data (and not near if possibile).
-Indeed: two threads reading the same data can be a good thing, as the first
-will put it in the cache and the second will be able to use it directly.
-Still, for NUMA machines, this is only true if the threads are working on
-close NUMA nodes or on the same node. Moreover if the threads writes the same
-data it becames more problematic as a write will invalidate the data on
-private caches. Furthermore as caches granularity is the cache line (usually
-64 bytes) two threads writing two different integers stored near in the same
-cache line ( for instance array[0] and array[8] ) will results on false
-sharing: the cache will see it as a write conflict.
+    Different threads should work on different data (and not near if
+    possibile).  Indeed: two threads reading the same data can be a good
+    thing, as the first will put it in the cache and the second will be able
+    to use it directly.  Still, for NUMA machines, this is only true if the
+    threads are working on close NUMA nodes or on the same node. Moreover if
+    the threads writes the same data it becames more problematic as a write
+    will invalidate the data on private caches. Furthermore as caches
+    granularity is the cache line (usually 64 bytes) two threads writing two
+    different integers stored near in the same cache line ( for instance
+    array[0] and array[8] ) will results on false sharing: the cache will see
+    it as a write conflict.
 
-For NUMA machines, it is also important to think about the memory distribution
-over the node: thread working on the same data should be on the same node to
-avoid remote accesses. We should ensure that data are mapped near to the
-thread using them, moreover we should distribute the data (and the threads)
-over the node to avoid memory contention. If a part of the memory is used by
-every thread it should be either duplicated (in the case of a relatively small
-structure, read only) or intereleaved amoung the nodes for the same reasons.
+    For NUMA machines, it is also important to think about the memory
+    distribution over the node: thread working on the same data should be on
+    the same node to avoid remote accesses. We should ensure that data are
+    mapped near to the thread using them, moreover we should distribute the
+    data (and the threads) over the node to avoid memory contention. If a part
+    of the memory is used by every thread it should be either duplicated (in
+    the case of a relatively small structure, read only) or intereleaved
+    amoung the nodes for the same reasons.
 
-If some of your structures are user by (almost) every threads, you should
-obtain better performances by doing one of the following solutions:
+    If some of your structures are user by (almost) every threads, you should
+    obtain better performances by doing one of the following solutions:
 
-+ Divide the structures and make threads works on smaller problems, then pin
-  threads working on close data to the same numa node (or use an automated
-  tool to do so).
-+ If the structure is mostly read and the structure size is small enough, each
-  thread can work on local copy. *Warning: * you will need to decide how to
-  handle write.
+    1. **Divide the structure**
 
-2.  Mapping policy
+       Modify your code to make threads works on small parts of the structure,
+       then pin threads working on close data to the same numa node (or use an
+       automated tool to do so).
 
-By default, all recent operating systems maps memory pages close to the first
-thread accessing them, it is called first touch. Therefore either the first
-touch should be done be the thread actually using the data, or some mapping
-should be made (manually or via an external / automated tool).
+    2.  **Interleave**
+
+        You can distribute the pages of the structure amoung the NUMA nodes
+        (interleave) to balance the memory bandwith
+
+    3.  **Duplicate**
+
+        If the structure is only read and the structure size is small enough,
+        each thread can work on local copy.
+
+2.  **Mapping policy**
+
+    By default, all recent operating systems maps memory pages close to the
+    first thread accessing them, it is called first touch. Therefore either
+    the first touch should be done be the thread actually using the data, or
+    some mapping should be made (manually or via an external / automated
+    tool).
 
 
-3. Beware of the stack
+3.  **Beware of the stack**
 
-Stack is designed for private data, shared data should be on the heap
-(dynamically allocated) or global. Remote stack access might be quite
-inefficient and hard to improve for automated tools.
+    Stack is designed for private data, shared data should be on the heap
+    (dynamically allocated) or global. Remote stack access might be quite
+    inefficient and hard to improve for automated tools.
 
-The different visualization presented here allows you to undestand which data
-structures are important how they are distributed amoung the threads, and who
-is responsible for the first touch.
+    The different visualization presented here allows you to undestand which
+    data structures are important how they are distributed amoung the threads,
+    and who is responsible for the first touch.
 
 ```{r Parsing, echo=F}
 #Parse csv files
