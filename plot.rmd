@@ -1,20 +1,44 @@
 TABARNAC visualization
 ======================
 
-TABARNAC: Tools for Analyzing the Behaviour of Applications Running on Numa
-ArChitectures provides several visualisations of memory traces and gives you
-hints to improve your applications' memory behaviour.
+[TABARNAC: Tools for Analyzing the Behavior of Applications Running on Numa
+ArChitectures](TODO) provides several visualisations of memory traces and gives you
+hints to improve your applications' memory behavior.
 
 Introduction
 ------------
 
-Before presenting any visualization, there is a quick reminder on classical
-problems:
+Using efficiently the memory in parallel application can be hard, especially
+for NUMA machines. This trace visualization is designed to help you identify
+your applications' memory behavior and how to improve it.
 
-It is important to divide huge sets of data to distribute them amoung the
-threads, especially for NUMA machines. If some of your structures are equally
-(an highly) accessed by all threads, you should change the access patterns.
-You should obtain best performances by doing one of the following solutions:
+Before showing any actual visualizations here are a few reminders on efficient
+memory access (to go further see [Drepper's book](TODO)):
+
+1.  Split the memory
+
+Different threads should work on different data (and not near if possibile).
+Indeed: two threads reading the same data can be a good thing, as the first
+will put it in the cache and the second will be able to use it directly.
+Still, for NUMA machines, this is only true if the threads are working on
+close NUMA nodes or on the same node. Moreover if the threads writes the same
+data it becames more problematic as a write will invalidate the data on
+private caches. Furthermore as caches granularity is the cache line (usually
+64 bytes) two threads writing two different integers stored near in the same
+cache line ( for instance array[0] and array[8] ) will results on false
+sharing: the cache will see it as a write conflict.
+
+For NUMA machines, it is also important to think about the memory distribution
+over the node: thread working on the same data should be on the same node to
+avoid remote accesses. We should ensure that data are mapped near to the
+thread using them, moreover we should distribute the data (and the threads)
+over the node to avoid memory contention. If a part of the memory is used by
+every thread it should be either duplicated (in the case of a relatively small
+structure, read only) or intereleaved amoung the nodes for the same reasons.
+
+If some of your structures are user by (almost) every threads, you should
+obtain better performances by doing one of the following solutions:
+
 + Divide the structures and make threads works on smaller problems, then pin
   threads working on close data to the same numa node (or use an automated
   tool to do so).
@@ -22,16 +46,23 @@ You should obtain best performances by doing one of the following solutions:
   thread can work on local copy. *Warning: * you will need to decide how to
   handle write.
 
-If not specified otherwise, data are mapped according to the first touch
-algorithm which means as close as possible to the first thread that acces
-them. Therefore initialization by one thread before parrallel computation
-might result on low performances.
+2.  Mapping policy
 
-*Beware of the stack:*  Stack is designed for private data, remote stack access
-(for instance T0 accessing Stack#2) might be very slow, avoid them as much as
-possible. If your application uses intensively the stack, unsure that the
-stack is mapped on the same node as the thread its belong (man numa)
+By default, all recent operating systems maps memory pages close to the first
+thread accessing them, it is called first touch. Therefore either the first
+touch should be done be the thread actually using the data, or some mapping
+should be made (manually or via an external / automated tool).
 
+
+3. Beware of the stack
+
+Stack is designed for private data, shared data should be on the heap
+(dynamically allocated) or global. Remote stack access might be quite
+inefficient and hard to improve for automated tools.
+
+The different visualization presented here allows you to undestand which data
+structures are important how they are distributed amoung the threads, and who
+is responsible for the first touch.
 
 ```{r Parsing, echo=F}
 #Parse csv files
@@ -117,8 +148,8 @@ remove(OK)
 
 If there are any warning/error from R before this text, R might have failed
 ... If it is the first run of TABARNAC it might be the dependencies
-installation, running "tabarnac -p expname" should remove them.
-
+installation, running "tabarnac -p expname" (where expname is the name of the
+application you've just traced) should remove them.
 
 Topology
 --------
@@ -128,9 +159,9 @@ Topology
 Data structure usages
 ---------------------
 
-The following plots show the structures sizes in pages (one page = 4096 bytes)
-this information can give a hint on the importance of the different data
-structures and on the possible kind of optimization.
+The following plots show the structures sizes in pages (usually one page =
+4096 bytes) this information can give a hint on the importance of the
+different data structures and on the possible kind of optimization.
 
 *Note:*
 
@@ -138,11 +169,11 @@ structures and on the possible kind of optimization.
   recompile your program with the "-g" option and re run TABARNAC.
 + Some structures might be ignored by TABARNAC
     + Because no access have been detected: this happens with structures
-      smaller than one page (usually 4ko).
+      smaller than one page.
     + Because the structure is not used enough: to keep the figures clear, we
       automatically remove the structures responsible for less than 1 one
-      access over 10000. This can be cancelled bu running tabarnac -i -p expname
-+ After ignoring these structures, some thread might not be responsible of any
+      access over 10000. This can be cancelled by running tabarnac -i -p expname
++ After ignoring these structures, some threads might not be responsible of any
   access. Such thread will be ignored except if the -i option is used.
 
 ```{r GeneratingStructData, echo=F}
@@ -296,9 +327,9 @@ show(p)
 remove(p)
 ```
 
-Plots are not precise enough to say if a structure is not used, read or write
-by a specific thread, so here is table showing structures not read are written
-by some threads:
+As it is impossible to say from a plot if a structure is not read or written
+by a specific thread, there is a table showing which structures are not read
+or written by some threads (might be empty).
 
 ```{r UnusedStructs, echo=F}
 show(subset(df, df$NbAccess==0))
@@ -347,9 +378,9 @@ show("Nothing detected: not implemented yet")
 
 **TODO**
 
-+ Remote stack acc
 + All to all
 + First touch by one th
++ Remote stack acc
 
 
 + Yes:
@@ -365,13 +396,12 @@ Sharing inside structures
 
 The following plots shows for each structure how much and where each thread
 access it. It provides several important informations for optimizations:
-+ If you can identify groups of threads working on the same part of important
-  structures, try to bind them on the same NUMA node, with the part of the
-  structure they access.
++ If you can identify groups of threads working on the same part of a structure,
+  try to bind them on the same NUMA node, with the part of the structure they access.
 + If the pattern is the same for all threads, you can:
-    + Change your code to make threads work on different part of the
+    1. Change your code to make threads work on different part of the
       structures
-    + Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
+    2. Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
 
 
 ```{r Distribution, echo=F, fig.width=facet_width, fig.height=facet_height}
@@ -428,10 +458,11 @@ Most of the time when one run an application on a NUMA machine, data are
 mapped according to the first touch policy aka near to the first thread which
 use it. The following plot show the repartition of the first touch over the
 structures.
-If the plot is a straight line, it means that one thread is initializating the
-whole structure which is generally a bad idead on NUMA machines, you should
-try to split the initialization such that each thread is responsible for a
-part.
+The first touch pattern should be similar to the distribution pattern of the
+previous plots. If the plot is a straight line, it means that one thread is
+initializating the whole structure which is generally a bad idead on NUMA
+machines, you should try to split the initialization such that each thread is
+responsible for a part or manually distribute the structure on the nodes.
 
 ```{r firsttouch, echo=F, fig.width=width, fig.height=height}
 plotname <- "First access distribution for structure"
@@ -494,10 +525,10 @@ remove(args)
 remove(ignore)
 remove(imgsc)
 remove(insist)
-remove(output)
 remove(pg_size)
 remove(titles)
 remove(nth)
 remove(ratio)
+#remove(output)
 #ls()
 ```
