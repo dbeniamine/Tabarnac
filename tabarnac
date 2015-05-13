@@ -121,20 +121,20 @@ then
         sort -n -t, -k 1,1 -o $f $f
     done
 
-    cd $(dirname $0)
-    mkdir figure/
-    lstopo --no-io figure/topo.png
-
+    lstopo --no-io topo.png
 fi
 
 if $plot
 then
+    echo "coucou"
     dir=$(pwd)
     cd $(dirname $0)
-    mkdir figure/
+    mkdir -p ./figure/
+    mv $dir/topo.png figure/
+
     Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore $ratio
     # Clean and copi figures
-    rm -rf $dir/figure
+    rm -rf $dir/figure plot.md
     mv ./figure $dir/
     cd -
     mv ./$PROG*.png ./figure/ > /dev/null 2>&1
