@@ -17,19 +17,25 @@
 
 usage()
 {
-    echo "Usage $0 [options] -- cmd args"
-    echo "Options:"
-    echo "-d directory  Set pin install directory, default: $PIN_HOME"
-    echo "-b            Do black and white plots"
-    echo "-s            Save plots (pdf files)"
-    echo "-t            Disable titles in figures"
-    echo "-r            Run only (do not plot)"
-    echo "-i            Do not ignore smally used structures. This might
-                        produce a hard to read output"
-    echo "-p bench      Do not run, plot only for benchmark named benc"
-    echo "-S scale      Set the scale for saved figures implies -s"
-    echo "-R ratio      set plots_width=ratio*plot_height, default=1"
-    echo "-h            pDisplay this help and quit"
+    echo -e "Usage :\n"
+    echo "$0 [Options] -- cmd args"
+    echo "      -r [Run options] -- cmd args"
+    echo "      -p [Plot options] bench"
+    echo -e "\nGeneral options\n"
+    echo "  -h            Display this help and quit"
+    echo "  -p bench      Do not run, plot only for benchmark named bench (no
+                          need for -- cmd)"
+    echo "  -r            Run only (do not plot)"
+    echo -e "\nRun options:\n"
+    echo "  -d directory  Set pin install directory, default: $PIN_HOME"
+    echo -e "\nPlot options:\n"
+    echo "  -i            Do not ignore smally used structures. This might
+                          produce a hard to read output"
+    echo "  -b            Do black and white plots"
+    echo "  -s            Save plots (png files)"
+    echo "  -t            Disable titles in figures"
+    echo "  -S scale      Set the scale for saved figures implies -s"
+    echo "  -R ratio      set plots_width=ratio*plot_height, default=1"
 }
 
 run=true
@@ -83,9 +89,13 @@ while getopts "trbshp:S:iR:d:" opt; do
             ;;
     esac
 done
-
 if $run
 then
+    if [ -z "$(echo $@ | cut -d '-' -f 3)" ]
+    then
+        usage
+        exit 1
+    fi
     set -o errexit -o nounset -o pipefail
 
     # directory of this script
