@@ -91,7 +91,7 @@ while getopts "trbshp:S:iR:d:" opt; do
 done
 if $run
 then
-    if [ -z "$(echo $@ | cut -d '-' -f 3)" ]
+    if [ -z "$(echo $@ | cut -d '-' -f 3-)" ]
     then
         usage
         exit 1
@@ -126,7 +126,6 @@ fi
 
 if $plot
 then
-    echo "coucou"
     dir=$(pwd)
     cd $(dirname $0)
     mkdir -p ./figure/

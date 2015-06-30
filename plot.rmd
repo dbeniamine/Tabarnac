@@ -270,13 +270,8 @@ if(ignore)
 }
 remove(t)
 nth  <- length(unique(structsStats$Thread))-2 # don't count the total and firstacc
-facet_col <- min(3,floor(sqrt(nth)))
-facet_line <- nth/facet_col
-facet_width <- 5.5*ratio*facet_col
-facet_height <-5.5*facet_line
 height <- 7
 width <- height*ratio
-remove(facet_line)
 pg_size <- 4096
 ```
 ```{r ShowStructSize, echo=F, fig.width=width, fig.height=height}
@@ -305,50 +300,8 @@ show(p)
 remove(p)
 remove(structs)
 ```
-
 The following visualization shows the number of access and the ratio
-Read/Write for every data structures by each threads.
-
-```{r ByStructsRWPlot, echo=F, fig.width=facet_width, fig.height=facet_height}
-df <- subset(structsStats, structsStats$Thread!="total")
-df <- subset(df, df$Thread!="firstacc")
-p <- ggplot(subset(df, df$Struct!="total"), aes(x=Struct,y=NbAccess/1000,fill=Type))
-p <- p + geom_bar(stat="identity")
-p <- p + facet_wrap(~Thread, ncol=facet_col)
-if(titles)
-{
-    p <- p + ggtitle(paste("Number of access per thread and structures for", name))
-}
-p <- p + xlab("Structure name") + ylab("Number of Accesses (x10^3)")
-if(bw)
-{
-    p <- p + theme_bw()
-    p <- p + theme(panel.border = element_blank(),
-                   strip.background = element_rect(colour="#CCCCCC"))
-    p <- p + scale_fill_grey(labels=c("Read", "Write"))
-}else
-{
-    p <- p + scale_fill_discrete(labels=c("Read", "Write"))
-}
-p <- p + theme(legend.position="bottom")
-if(save)
-{
-    ggsave(filename=paste(path,"/",name,"_structs_rw.png", sep=""),scale=imgsc)
-}
-show(p)
-remove(p)
-```
-
-As it is impossible to say from a plot if a structure is not read or written
-by a specific thread, there is a table showing which structures are not read
-or written by some threads (might be empty).
-
-```{r UnusedStructs, echo=F}
-show(subset(df, df$NbAccess==0))
-```
-
-Finally a global view of the read write pattern by structure:
-
+Read/Write for every data structures.
 ```{r TotalRWPlot, echo=F, fig.width=width, fig.height=height}
 df <- subset(structsStats, structsStats$Struct!="total")
 p <- ggplot(subset(df, df$Thread=="total"), aes(x=Struct,y=NbAccess/1000,fill=Type))
@@ -375,33 +328,28 @@ if(save)
 }
 show(p)
 remove(p)
+```
+
+
+As it is impossible to say from a plot if a structure is not read or written
+by a specific thread, there is a table showing which structures are not read
+or written by some threads (might be empty).
+
+```{r UnusedStructs, echo=F}
+show(subset(df, df$NbAccess==0))
 remove(df)
 ```
 
 
-Detected problems
------------------
 
-TABARNAC tries to detect automatically performance issues:
+As it is impossible to say from a plot if a structure is not read or written
+by a specific thread, there is a table showing which structures are not read
+or written by some threads (might be empty).
 
-```{r AutoDetect, echo=F, fig.width=width, fig.height=height}
-show("Nothing detected: not implemented yet")
+```{r UnusedStructs, echo=F}
+show(subset(df, df$NbAccess==0))
 ```
 
-**TODO**
-
-+ All to all
-+ First touch by one th
-+ Remote stack acc
-
-
-+ Yes:
-    + what , where , how to fix it ?
-    + Look at the other plots, one issue might hide and others...
-+ No:
-  If you are using TABARNAC it probably means that you have some
-  performances issues, we just don't have detected the cause automatically,
-  take a look at the plots of the following sections.
 
 Sharing inside structures
 -------------------------
@@ -416,7 +364,7 @@ access it. It provides several important informations for optimizations:
     2. Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
 
 
-```{r Distribution, echo=F, fig.width=facet_width, fig.height=facet_height}
+```{r Distribution, echo=F, fig.width=width, fig.height=height}
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -435,21 +383,31 @@ for(str in unique(acc$struct))
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
+    ndf$Value <- ndf$Value/1000
+    mid <- max(ndf$Value)/2
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Value/1000) ) + geom_point(pch=3,cex=1)
-    p <- p + xlab("Page number") + ylab("Number of Accesses (x10^3)")
-    p <- p + facet_wrap(~Thread, ncol=facet_col)
+    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,color=Value) ) + geom_point() #geom_point(pch=3,cex=1)
+    p <- p + xlab("Page number") + ylab("Thread Id")
+    p <- p + ylim(0, nth-1)
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
     }
     if(bw)
     {
+        p <- p + scale_colour_gradient2(low="white", mid="light grey",
+                high="black", midpoint=mid,name="Number of accesses (x10^3)")
         p <- p + theme_bw()
         # BW theme without borders
         p <- p + theme(panel.border = element_blank(),
                        strip.background = element_rect(colour="#CCCCCC"))
     }
+    else
+    {
+        p <- p + scale_colour_gradient2(low="light yellow", mid="orange",
+            high="dark red", midpoint=mid,name="Number of accesses (x10^3)")
+    }
+    p <- p + theme(legend.position="bottom")
     show(p)
     if(save)
     {
@@ -485,7 +443,6 @@ for(str in unique(acc$struct))
     ndf <- sacc[,c("addr", "firstacc")]
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc) ) + geom_point(pch=3,cex=1)
-    p <- p + scale_y_continuous(breaks=seq(0, nth-1, 1))
     p <- p + ylim(0, nth-1)
     if(titles)
     {
@@ -530,9 +487,6 @@ remove(path)
 remove(structsStats)
 remove(acc)
 remove(bw)
-remove(facet_width)
-remove(facet_height)
-remove(facet_col)
 remove(args)
 remove(ignore)
 remove(imgsc)
@@ -541,6 +495,7 @@ remove(pg_size)
 remove(titles)
 remove(nth)
 remove(ratio)
+remove(mid)
 #remove(output)
 #ls()
 ```
