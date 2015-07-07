@@ -142,9 +142,7 @@ for(page in unique(acc$addr))
             }
         }
     }
-    #if(!OK)
     snames <- c(snames,structs$name[cur],structs$name[cur])
-    #cpt <- cpt+1
 }
 acc$struct <- snames
 remove(addr)
@@ -340,17 +338,6 @@ show(subset(df, df$NbAccess==0))
 remove(df)
 ```
 
-
-
-As it is impossible to say from a plot if a structure is not read or written
-by a specific thread, there is a table showing which structures are not read
-or written by some threads (might be empty).
-
-```{r UnusedStructs, echo=F}
-show(subset(df, df$NbAccess==0))
-```
-
-
 Sharing inside structures
 -------------------------
 
@@ -388,19 +375,18 @@ for(str in unique(acc$struct))
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,color=Value) ) + geom_point() #geom_point(pch=3,cex=1)
     p <- p + xlab("Page number") + ylab("Thread Id")
-    p <- p + ylim(0, nth-1)
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
     }
     if(bw)
     {
-        p <- p + scale_colour_gradient2(low="white", mid="light grey",
-                high="black", midpoint=mid,name="Number of accesses (x10^3)")
         p <- p + theme_bw()
         # BW theme without borders
         p <- p + theme(panel.border = element_blank(),
                        strip.background = element_rect(colour="#CCCCCC"))
+        p <- p + scale_colour_gradient2(low="white", mid="light grey",
+                high="black", midpoint=mid,name="Number of accesses (x10^3)")
     }
     else
     {
