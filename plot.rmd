@@ -5,76 +5,7 @@ TABARNAC visualization
 ArChitectures](TODO) provides several visualisations of memory traces and gives you
 hints to improve your applications' memory behavior.
 
-Introduction
-------------
-
-Using efficiently the memory in parallel application can be hard, especially
-for NUMA machines. This trace visualization is designed to help you identify
-your applications' memory behavior and how to improve it.
-
-Before showing any actual visualizations here are a few reminders on efficient
-memory access (to go further see [Drepper's book](TODO)):
-
-1.  **Split the memory**
-
-    Different threads should work on different data (and not near if
-    possibile).  Indeed: two threads reading the same data can be a good
-    thing, as the first will put it in the cache and the second will be able
-    to use it directly.  Still, for NUMA machines, this is only true if the
-    threads are working on close NUMA nodes or on the same node. Moreover if
-    the threads writes the same data it becames more problematic as a write
-    will invalidate the data on private caches. Furthermore as caches
-    granularity is the cache line (usually 64 bytes) two threads writing two
-    different integers stored near in the same cache line ( for instance
-    array[0] and array[8] ) will results on false sharing: the cache will see
-    it as a write conflict.
-
-    For NUMA machines, it is also important to think about the memory
-    distribution over the node: thread working on the same data should be on
-    the same node to avoid remote accesses. We should ensure that data are
-    mapped near to the thread using them, moreover we should distribute the
-    data (and the threads) over the node to avoid memory contention. If a part
-    of the memory is used by every thread it should be either duplicated (in
-    the case of a relatively small structure, read only) or intereleaved
-    amoung the nodes for the same reasons.
-
-    If some of your structures are user by (almost) every threads, you should
-    obtain better performances by doing one of the following solutions:
-
-    1. **Divide the structure**
-
-       Modify your code to make threads works on small parts of the structure,
-       then pin threads working on close data to the same numa node (or use an
-       automated tool to do so).
-
-    2.  **Interleave**
-
-        You can distribute the pages of the structure amoung the NUMA nodes
-        (interleave) to balance the memory bandwith
-
-    3.  **Duplicate**
-
-        If the structure is only read and the structure size is small enough,
-        each thread can work on local copy.
-
-2.  **Mapping policy**
-
-    By default, all recent operating systems maps memory pages close to the
-    first thread accessing them, it is called first touch. Therefore either
-    the first touch should be done be the thread actually using the data, or
-    some mapping should be made (manually or via an external / automated
-    tool).
-
-
-3.  **Beware of the stack**
-
-    Stack is designed for private data, shared data should be on the heap
-    (dynamically allocated) or global. Remote stack access might be quite
-    inefficient and hard to improve for automated tools.
-
-    The different visualization presented here allows you to undestand which
-    data structures are important how they are distributed amoung the threads,
-    and who is responsible for the first touch.
+For hints on NUMA optimization see [General Advices](./advices.html)
 
 ```{r Parsing, echo=F}
 #Parse csv files
@@ -300,6 +231,7 @@ remove(structs)
 ```
 The following visualization shows the number of access and the ratio
 Read/Write for every data structures.
+
 ```{r TotalRWPlot, echo=F, fig.width=width, fig.height=height}
 df <- subset(structsStats, structsStats$Struct!="total")
 p <- ggplot(subset(df, df$Thread=="total"), aes(x=Struct,y=NbAccess/1000,fill=Type))
@@ -328,10 +260,8 @@ show(p)
 remove(p)
 ```
 
-
-As it is impossible to say from a plot if a structure is not read or written
-by a specific thread, there is a table showing which structures are not read
-or written by some threads (might be empty).
+The next table tells which structures are not read or written by which thread,
+it can be uefull to determine if duplication is a possible solution.
 
 ```{r UnusedStructs, echo=F}
 show(subset(df, df$NbAccess==0))
@@ -370,6 +300,7 @@ for(str in unique(acc$struct))
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
+    ndf$Thread <- str_replace(ndf$Thread,'T','')
     ndf$Value <- ndf$Value/1000
     mid <- max(ndf$Value)/2
     #   # Plot the distribution
@@ -457,15 +388,6 @@ remove(str)
 
 ```
 
-R/W patterns
-------------
-
-The plots presented here are only interesting in very particular
-circumstances, it show the difference between Read and Write pattern for each
-couple Thread, Structure.
-
-**TODO**
-
 ```{r Cleaning, echo=F}
 remove(save)
 remove(name)
@@ -483,5 +405,5 @@ remove(nth)
 remove(ratio)
 remove(mid)
 #remove(output)
-#ls()
+ls()
 ```

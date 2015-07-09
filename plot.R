@@ -41,5 +41,7 @@ imgsc  <- as.numeric(as.character(args[6]))
 ignore <- args[7]
 ratio  <- as.numeric(as.character(args[8]))
 output <- paste(path, '/', name, '-plots.html', sep='')
+output1 <- paste(path, '/advices.html', sep='')
 # Do the work
 knit2html("plot.rmd", output)
+knit2html("advices.rmd", output1)
