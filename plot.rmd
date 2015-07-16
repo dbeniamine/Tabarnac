@@ -229,6 +229,7 @@ show(p)
 remove(p)
 remove(structs)
 ```
+
 The following visualization shows the number of access and the ratio
 Read/Write for every data structures.
 
@@ -264,7 +265,7 @@ The next table tells which structures are not read or written by which thread,
 it can be uefull to determine if duplication is a possible solution.
 
 ```{r UnusedStructs, echo=F}
-show(subset(df, df$NbAccess==0))
+show(subset(df, df$NbAccess==0 && df$Thread!="firstacc"))
 remove(df)
 ```
 
@@ -291,10 +292,12 @@ for(str in unique(acc$struct))
     sacc$struct <- NULL
     sacc$total <- NULL
     # lets Forget about R/W informations
+    options(warn=-1)
     acct <- data.table(sacc)
     acct$type <- NULL
     acct <- acct[,lapply(.SD,sum),by=c("addr")]
     sacc <- data.frame(acct)
+    options(warn=0)
     #show(acct)
     remove(acct)
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
@@ -404,6 +407,6 @@ remove(titles)
 remove(nth)
 remove(ratio)
 remove(mid)
-#remove(output)
-ls()
+remove(height)
+remove(width)
 ```

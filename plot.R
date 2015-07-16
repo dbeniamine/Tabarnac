@@ -45,3 +45,5 @@ output1 <- paste(path, '/advices.html', sep='')
 # Do the work
 knit2html("plot.rmd", output)
 knit2html("advices.rmd", output1)
+remove(output)
+remove(output1)

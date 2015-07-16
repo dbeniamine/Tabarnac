@@ -58,7 +58,6 @@ const int MAXTHREADS = 1024;
 int PAGESIZE;
 unsigned int REAL_PAGESIZE;
 
-KNOB<int> COMMSIZE(KNOB_MODE_WRITEONCE, "pintool", "cs", "6", "comm shift in bits");
 KNOB<int> INTERVAL(KNOB_MODE_WRITEONCE, "pintool", "i", "0", "print interval (ms) (0=disable)");
 
 
@@ -73,10 +72,6 @@ ofstream fstructStream;
 
 int num_threads = 0;
 
-UINT64 comm_matrix[MAXTHREADS][MAXTHREADS]; // comm matrix
-
-unordered_map<UINT64, array<UINT32,2>> commmap; // cache line -> list of tids that previously accesses
-
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> pagemap[2];
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> ftmap;
 
@@ -89,59 +84,6 @@ map<UINT32, UINT64> stackmap;        // stack base address from pinned applicati
 string img_name;
 
 
-    static inline
-VOID inc_comm(int a, int b)
-{
-    // if (a!=b-1)
-    comm_matrix[a][b-1]++;
-}
-
-
-VOID do_comm(ADDRINT addr, THREADID tid)
-{
-    UINT64 line = addr >> COMMSIZE;
-    tid = REAL_TID(tid);
-    int sh = 1;
-
-    THREADID a = commmap[line][0];
-    THREADID b = commmap[line][1];
-
-
-    if (a == 0 && b == 0)
-        sh = 0;
-    if (a != 0 && b != 0)
-        sh = 2;
-
-    switch (sh) {
-        case 0: /* no one accessed line before, store accessing thread in pos 0 */
-            commmap[line][0] = tid+1;
-            break;
-
-        case 1: /* one previous access => needs to be in pos 0 */
-            // if (a != tid+1) {
-            inc_comm(tid, a);
-            commmap[line][1] = a;
-            commmap[line][0] = tid+1;
-            // }
-            break;
-
-        case 2: // two previous accesses
-            // if (a != tid+1 && b != tid+1) {
-            inc_comm(tid, a);
-            inc_comm(tid, b);
-            commmap[line][1] = a;
-            commmap[line][0] = tid+1;
-            // } else if (a == tid+1) {
-            // 	inc_comm(tid, b);
-            // } else if (b == tid+1) {
-            // 	inc_comm(tid, a);
-            // 	commmap[line][1] = a;
-            // 	commmap[line][0] = tid+1;
-            // }
-
-            break;
-    }
-}
 
     static inline
 UINT64 get_tsc()
@@ -171,19 +113,6 @@ VOID do_numa(ADDRINT addr, THREADID tid, ADDRINT type)
 
     if (pagemap[type][tid][page]++ == 0 && pagemap[(type+1)%2][tid][page]==0)
         ftmap[tid][page] = get_tsc();
-}
-
-
-VOID trace_memory_comm(INS ins, VOID *v)
-{
-    if (INS_IsMemoryRead(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_comm, IARG_MEMORYREAD_EA, IARG_THREAD_ID, IARG_END);
-
-    if (INS_HasMemoryRead2(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_comm, IARG_MEMORYREAD2_EA, IARG_THREAD_ID, IARG_END);
-
-    if (INS_IsMemoryWrite(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)do_comm, IARG_MEMORYWRITE_EA, IARG_THREAD_ID, IARG_END);
 }
 
 VOID trace_memory_page(INS ins, VOID *v)
@@ -235,43 +164,6 @@ VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
     ofs << REAL_TID(tid) <<"," << stackmap[pid] <<","<< GetStackSize() << endl;
     ofs.close();
 
-}
-
-
-VOID print_matrix()
-{
-    static long n = 0;
-    ofstream f;
-    char fname[255];
-
-    if (INTERVAL)
-        sprintf(fname, "%s.%06ld.comm.csv", img_name.c_str(), n++);
-    else
-        sprintf(fname, "%s.full.comm.csv", img_name.c_str());
-
-    int real_tid[MAXTHREADS+1];
-    int i = 0, a, b;
-
-    for (auto it : pidmap)
-        real_tid[it.second] = i++;
-
-    cout << fname << endl;
-
-    f.open(fname);
-
-    for (int i = num_threads-1; i>=0; i--) {
-        a = real_tid[i];
-        for (int j = 0; j<num_threads; j++) {
-            b = real_tid[j];
-            f << comm_matrix[a][b] + comm_matrix[b][a];
-            if (j != num_threads-1)
-                f << ",";
-        }
-        f << endl;
-    }
-    f << endl;
-
-    f.close();
 }
 
 
@@ -494,7 +386,7 @@ VOID Fini(INT32 code, VOID *v)
     print_numa();
     fstructStream.close();
 
-    cout << endl << "MAXTHREADS: " << MAXTHREADS << " COMMSIZE: " << COMMSIZE << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
+    cout << endl << "MAXTHREADS: " << MAXTHREADS << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
 }
 
 
@@ -512,7 +404,7 @@ int main(int argc, char *argv[])
     if (t!=1)
         cerr << "ERROR internal thread " << t << endl;
 
-    cout << endl << "MAXTHREADS: " << MAXTHREADS << " COMMSIZE: " << COMMSIZE << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
+    cout << endl << "MAXTHREADS: " << MAXTHREADS << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
 
     INS_AddInstrumentFunction(trace_memory_page, 0);
 
