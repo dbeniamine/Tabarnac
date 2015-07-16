@@ -300,7 +300,7 @@ for(str in unique(acc$struct))
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
-    ndf$Thread <- str_replace(ndf$Thread,'T','')
+    ndf$Thread <- as.numeric(as.character(str_replace(ndf$Thread,'T','')))
     ndf$Value <- ndf$Value/1000
     mid <- max(ndf$Value)/2
     #   # Plot the distribution

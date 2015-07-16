@@ -129,6 +129,7 @@ then
     dir=$(pwd)
     cd $(dirname $0)
     mkdir -p ./figure/
+    mv $dir/figure/topo.png figure/
     mv $dir/topo.png figure/
 
     Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore $ratio
