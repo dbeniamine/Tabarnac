@@ -2,7 +2,7 @@
 
 ## What is tabarnac
 
-*TABARNAC*: Tool for Analyzing the Behavior of Applications Running on NUMA
+*TABARNAC*:  Tools for Analyzing the Behavior of Applications Running on NUMA
 ArChitecture is a set of tools and methodologies to analyse performances
 issues related to (NUMA) memory usage. Tabarnac consists on two parts:
 
