@@ -283,6 +283,15 @@ access it. It provides several important informations for optimizations:
 
 
 ```{r Distribution, echo=F, fig.width=width, fig.height=height}
+thread_formatter <- function(x)
+{
+    lab <- str_replace(x,'-1','Total')
+}
+my_breaks <- function(x)
+{
+    breaks <- pretty(x)
+    breaks <- c(-1,breaks[breaks>=0 & breaks < nth])
+}
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -290,7 +299,6 @@ for(str in unique(acc$struct))
     # Create a df addr th num access
     sacc <- subset(acc, acc$struct==str)
     sacc$struct <- NULL
-    sacc$total <- NULL
     # lets Forget about R/W informations
     options(warn=-1)
     acct <- data.table(sacc)
@@ -298,17 +306,17 @@ for(str in unique(acc$struct))
     acct <- acct[,lapply(.SD,sum),by=c("addr")]
     sacc <- data.frame(acct)
     options(warn=0)
-    #show(acct)
     remove(acct)
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
-    ndf$Thread <- as.numeric(as.character(str_replace(ndf$Thread,'T','')))
+    ndf$Thread <- as.numeric(as.character(str_replace(str_replace(ndf$Thread,'T',''),'total','-1')))
     ndf$Value <- ndf$Value/1000
-    mid <- max(ndf$Value)/2
+    mid <- max(subset(ndf,ndf$Thread!=-1)$Value)/2
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,color=Value) ) + geom_point() #geom_point(pch=3,cex=1)
     p <- p + xlab("Page number") + ylab("Thread Id")
+    p <- p +scale_y_continuous(label=thread_formatter, breaks=my_breaks)
     if(titles)
     {
         p <- p + ggtitle(paste(plotname,' "', str,'"',sep=""))
@@ -319,13 +327,13 @@ for(str in unique(acc$struct))
         # BW theme without borders
         p <- p + theme(panel.border = element_blank(),
                        strip.background = element_rect(colour="#CCCCCC"))
-        p <- p + scale_colour_gradient2(low="white", mid="light grey",
-                high="black", midpoint=mid,name="Number of accesses (x10^3)")
+        p <- p + scale_colour_gradient2(limits=c(0,2*mid), na.value="black", low="white", mid="grey50",
+                high="black", midpoint=mid,name="Number of\naccesses\n(x10^3)")
     }
     else
     {
         p <- p + scale_colour_gradient2(low="light yellow", mid="orange",
-            high="dark red", midpoint=mid,name="Number of accesses (x10^3)")
+            high="dark red", midpoint=mid,name="Number of\naccesses\n(x10^3)")
     }
     p <- p + theme(legend.position="bottom")
     show(p)
