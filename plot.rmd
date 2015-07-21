@@ -13,6 +13,7 @@ insist(ggplot2)
 insist(plyr)
 insist(stringr)
 insist(data.table)
+insist(matlab)
 minRatio <- 10000 # Structs responsible of less than 1/minRation access will be ignored
 # The palette with grey:
 base=paste(path,"/",name, sep="")
@@ -283,14 +284,15 @@ access it. It provides several important informations for optimizations:
 
 
 ```{r Distribution, echo=F, fig.width=width, fig.height=height}
+totalsep <- -1*ceil(nth/10)
 thread_formatter <- function(x)
 {
-    lab <- str_replace(x,'-1','Total')
+    lab <- str_replace(x,as.character(totalsep),'Total')
 }
 my_breaks <- function(x)
 {
     breaks <- pretty(x)
-    breaks <- c(-1,breaks[breaks>=0 & breaks < nth])
+    breaks <- c(totalsep,breaks[breaks>=0 & breaks < nth])
 }
 plotname <- "Access distribution by thread for structure"
 # For each structures
@@ -310,9 +312,9 @@ for(str in unique(acc$struct))
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
     ndf <- subset(ndf, ndf$Thread!="firstacc")
-    ndf$Thread <- as.numeric(as.character(str_replace(str_replace(ndf$Thread,'T',''),'total','-1')))
+    ndf$Thread <- as.numeric(as.character(str_replace(str_replace(ndf$Thread,'T',''),'total',as.character(totalsep))))
     ndf$Value <- ndf$Value/1000
-    mid <- max(subset(ndf,ndf$Thread!=-1)$Value)/2
+    mid <- max(subset(ndf,ndf$Thread!=totalsep)$Value)/2
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,color=Value) ) + geom_point() #geom_point(pch=3,cex=1)
     p <- p + xlab("Page number") + ylab("Thread Id")
