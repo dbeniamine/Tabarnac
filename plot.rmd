@@ -211,6 +211,7 @@ p <- ggplot(structs, aes(x=name,y=sz/4096, fill=name))
 p <- p + geom_bar(stat="identity")
 p <- p + xlab("Structure name") + ylab("Size (pages)")
 p <- p + theme_bw()
+p <- p + scale_fill_brewer(palette="OrRd")
 if(titles)
 {
     p <- p + ggtitle(paste("Structures size for", name))
@@ -252,6 +253,7 @@ if(bw)
 }else
 {
     p <- p + scale_fill_discrete(labels=c("Read", "Write"))
+    p <- p + scale_fill_manual(values=c("#fee8c8", "#e34a33"))
 }
 p <- p + theme(legend.position="bottom")
 if(save)
@@ -289,11 +291,11 @@ thread_formatter <- function(x)
 {
     lab <- str_replace(x,as.character(totalsep),'Average')
 }
-#my_breaks <- function(x)
-#{
-#    breaks <- pretty(x)
-#    breaks <- c(totalsep,breaks[breaks>=0 & breaks < nth])
-#}
+my_breaks <- function(x)
+{
+    breaks <- pretty(x)
+    breaks <- c(totalsep,breaks[breaks>=0 & breaks < nth])
+}
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -319,7 +321,7 @@ for(str in unique(acc$struct))
     #   # Plot the distribution
     p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,color=Value) ) + geom_point() #geom_point(pch=3,cex=1)
     p <- p + xlab("Page number") + ylab("Thread Id")
-    p <- p +scale_y_continuous(label=thread_formatter)
+    p <- p +scale_y_continuous(label=thread_formatter, breaks=my_breaks)
     p <- p + theme_bw()
     if(titles)
     {
@@ -335,8 +337,8 @@ for(str in unique(acc$struct))
     }
     else
     {
-        p <- p + scale_colour_gradient2(low="light yellow", mid="orange",
-            high="dark red", midpoint=mid,name="Number of\naccesses\n(x10^3)")
+        p <- p + scale_colour_gradient2(low="#fee8c8", mid="#fdbb84",
+            high="#e34a33", midpoint=mid,name="Number of\naccesses\n(x10^3)")
     }
     p <- p + theme(legend.position="bottom")
     show(p)
@@ -394,7 +396,8 @@ for(str in unique(acc$struct))
     }
     else
     {
-        p <- p + scale_color_continuous(limits=c(0,nth-1),name="Thread Id")
+        p <- p + scale_color_gradient(limits=c(0,nth-1),name="Thread Id",
+                                      low="#fee8c8", high="#e34a33")
     }
     show(p)
     if(save)
