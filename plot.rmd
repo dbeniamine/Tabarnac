@@ -211,7 +211,7 @@ p <- ggplot(structs, aes(x=name,y=sz/4096, fill=name))
 p <- p + geom_bar(stat="identity")
 p <- p + xlab("Structure name") + ylab("Size (pages)")
 p <- p + theme_bw()
-p <- p + scale_fill_brewer(palette="OrRd")
+p <- p + scale_fill_brewer(palette="YlOrRd")
 if(titles)
 {
     p <- p + ggtitle(paste("Structures size for", name))
@@ -253,7 +253,7 @@ if(bw)
 }else
 {
     p <- p + scale_fill_discrete(labels=c("Read", "Write"))
-    p <- p + scale_fill_manual(values=c("#fee8c8", "#e34a33"))
+    p <- p + scale_fill_manual(values=c("#ffeda0", "#f03b20"))
 }
 p <- p + theme(legend.position="bottom")
 if(save)
@@ -319,7 +319,7 @@ for(str in unique(acc$struct))
     ndf$Value[ndf$Thread==totalsep] <- ndf$Value[ndf$Thread==totalsep] /nth
     mid <- max(ndf$Value)/2
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,color=Value) ) + geom_point() #geom_point(pch=3,cex=1)
+    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,colour=Value) ) + geom_point() #geom_point(pch=3,cex=1)
     p <- p + xlab("Page number") + ylab("Thread Id")
     p <- p +scale_y_continuous(label=thread_formatter, breaks=my_breaks)
     p <- p + theme_bw()
@@ -337,8 +337,8 @@ for(str in unique(acc$struct))
     }
     else
     {
-        p <- p + scale_colour_gradient2(low="#fee8c8", mid="#fdbb84",
-            high="#e34a33", midpoint=mid,name="Number of\naccesses\n(x10^3)")
+        p <- p + scale_colour_gradient2(low="white", mid="dark orange",
+            high="dark red", midpoint=mid,name="Number of\naccesses\n(x10^3)")
     }
     p <- p + theme(legend.position="bottom")
     show(p)
@@ -375,7 +375,7 @@ for(str in unique(acc$struct))
     sacc <- subset(acc, acc$struct==str)
     ndf <- sacc[,c("addr", "firstacc")]
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc, color=firstacc, shape=firstacc) ) + geom_point(pch=3,cex=1)
+    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc, colour=firstacc, shape=firstacc) ) + geom_point(pch=3,cex=1)
     p <- p + theme_bw()
     p <- p + ylim(0, nth-1)
     p <- p + theme(legend.position="bottom")
@@ -391,13 +391,14 @@ for(str in unique(acc$struct))
                        strip.background = element_rect(colour="#CCCCCC"))
 #                       panel.grid.minor = element_line(colour = "black", linetype="dashed", size = 0.1),
 #                       panel.grid.major = element_line(colour = "black", size = 0.1))
-        p <- p + scale_color_grey(limits=c(0,nth-1),name="Thread Id")
+        p <- p + scale_colour_gradient(limits=c(0,nth-1),name="Thread Id", low="grey70",
+                high="black")
 
     }
     else
     {
-        p <- p + scale_color_gradient(limits=c(0,nth-1),name="Thread Id",
-                                      low="#fee8c8", high="#e34a33")
+        p <- p + scale_colour_gradient(limits=c(0,nth-1),name="Thread Id",
+                                      low="#ffeea3", high="#ff0000")
     }
     show(p)
     if(save)
