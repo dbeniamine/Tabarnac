@@ -337,8 +337,8 @@ for(str in unique(acc$struct))
     }
     else
     {
-        p <- p + scale_colour_gradient2(low="white", mid="dark orange",
-            high="dark red", midpoint=mid,name="Number of\naccesses\n(x10^3)")
+        p <- p + scale_colour_gradient2(low="white", mid="#C86400",
+            high="#640000", midpoint=mid,name="Number of\naccesses\n(x10^3)")
     }
     p <- p + theme(legend.position="bottom")
     show(p)
