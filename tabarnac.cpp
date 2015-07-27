@@ -296,7 +296,7 @@ string get_struct_name(string str, int ln, string fname, int hops)
     string ret=str.substr(0,str.find('='));
     //remove trailing whitespaces
     while(ret.back()==' ')
-        ret.pop_back();
+        ret.resize(ret.size()-1);
     // Take the last word
     ret=ret.substr(ret.find_last_of(string(" )*"))+1);
     // Our search have failed, it will be an anonymous malloc
