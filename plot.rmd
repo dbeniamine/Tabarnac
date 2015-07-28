@@ -2,7 +2,7 @@ TABARNAC visualization
 ======================
 
 [TABARNAC: Tools for Analyzing the Behavior of Applications Running on Numa
-ArChitectures](TODO) provides several visualisations of memory traces and gives you
+ArChitectures](http://dbeniamine.github.io/Tabarnac/) provides several visualisations of memory traces and gives you
 hints to improve your applications' memory behavior.
 
 For hints on NUMA optimization see [General Advices](./advices.html)
@@ -17,81 +17,96 @@ insist(matlab)
 minRatio <- 10000 # Structs responsible of less than 1/minRation access will be ignored
 # The palette with grey:
 base=paste(path,"/",name, sep="")
-structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
-acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
-# Merge duplicate addresses
-acct <- data.table(acc)
-acct <- acct[,lapply(.SD,sum),by=c("addr","type")]
-acc <- data.frame(acct)
-remove(acct)
-acc$total  <- rowSums(acc[,-1:-2])
-stacks<-data.frame(read.csv2(file=paste(base,".stackmap.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+if(file.exists(paste(base,".structsModif.csv",sep="")) &&
+   file.exists(paste(base,".structsStats.csv",sep="")) &&
+    file.exists(paste(base,".acc.csv",sep=""))){
+    structs<-data.frame(read.csv2(file=paste(base,".structsModif.csv",sep=""),stringsAsFactors=FALSE))
+    structsStats<-data.frame(read.csv2(file=paste(base,".structsStats.csv",sep=""),stringsAsFactors=FALSE))
+    acc<-data.frame(read.csv2(file=paste(base,".acc.csv",sep=""),stringsAsFactors=FALSE))
+    InitDone <- T
+} else {
+    InitDone <- F
+    structs<-data.frame(read.csv2(file=paste(base,".structs.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+    acc<-data.frame(read.csv2(file=paste(base,".full.page.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+    # Merge duplicate addresses
+    acct <- data.table(acc)
+    acct <- acct[,lapply(.SD,sum),by=c("addr","type")]
+    acc <- data.frame(acct)
+    remove(acct)
+    acc$total  <- rowSums(acc[,-1:-2])
+    stacks<-data.frame(read.csv2(file=paste(base,".stackmap.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+}
 ```
 ```{r RetrievingPageStructMapping, echo=F}
-# Add stacks and end to structs
-for(i in 1:nrow(stacks))
-{
-    structs <- rbind(structs, c(paste("Stack#",stacks$tid[i], sep=""),(2^12)*stacks$stackmax[i]-stacks$sz[i], stacks$sz[i]))
-}
-structs <- rbind(structs,c("Others",0,0))
-structs <- transform(structs, start=as.numeric(as.character(start)),sz=as.numeric(as.character(sz)))
-structs$end <- rowSums(structs[,2:3])
-#structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numeric(as.character(end)))
-structs <- structs[order(structs$start),]
-remove(stacks)
-# Retrieve page / structure mapping
-snames=c()
-i <- 2
-cur <- i
-#cpt <- 1
-# Here we know that structs and acc are sorted by adresse, which ease the search
-for(page in unique(acc$addr))
-{
-    addr <- (2^12)*page
-    OK <- F
-    cur <- 1
-    while(!OK && i<=nrow(structs))
+if(!InitDone){
+    # Add stacks and end to structs
+    for(i in 1:nrow(stacks))
     {
-        if(addr < structs[i,]$start)
+        structs <- rbind(structs, c(paste("Stack#",stacks$tid[i], sep=""),(2^12)*stacks$stackmax[i]-stacks$sz[i], stacks$sz[i]))
+    }
+    structs <- rbind(structs,c("Others",0,0))
+    structs <- transform(structs, start=as.numeric(as.character(start)),sz=as.numeric(as.character(sz)))
+    structs$end <- rowSums(structs[,2:3])
+    #structs <- transform(structs, start=as.numeric(as.character(start)),end=as.numeric(as.character(end)))
+    structs <- structs[order(structs$start),]
+    remove(stacks)
+    # Retrieve page / structure mapping
+    snames=c()
+    i <- 2
+    cur <- i
+    #cpt <- 1
+    # Here we know that structs and acc are sorted by adresse, which ease the search
+    for(page in unique(acc$addr))
+    {
+        addr <- (2^12)*page
+        OK <- F
+        cur <- 1
+        while(!OK && i<=nrow(structs))
         {
-            #Addr is between two structs
-            OK <- T
-            if( structs[1,]$start==0)
-                structs[1,]$start <- addr
-            if( addr+(2^12) > structs[1,]$end)
-                structs[1,]$end <- addr+(2^12)
-        }else
-        {
-            if(addr >= structs[i,]$start && addr < structs[i,]$end)
+            if(addr < structs[i,]$start)
             {
-                # Addr is in the next struct
+                #Addr is between two structs
                 OK <- T
-                cur <- i
+                if( structs[1,]$start==0)
+                    structs[1,]$start <- addr
+                if( addr+(2^12) > structs[1,]$end)
+                    structs[1,]$end <- addr+(2^12)
             }else
             {
-                #Addr might be in the next struct
-                i <- i+1
+                if(addr >= structs[i,]$start && addr < structs[i,]$end)
+                {
+                    # Addr is in the next struct
+                    OK <- T
+                    cur <- i
+                }else
+                {
+                    #Addr might be in the next struct
+                    i <- i+1
+                }
             }
         }
+        snames <- c(snames,structs$name[cur],structs$name[cur])
     }
-    snames <- c(snames,structs$name[cur],structs$name[cur])
+    acc$struct <- snames
+    remove(addr)
+    remove(page)
+    remove(snames)
+    remove(i)
+    remove(cur)
+    remove(OK)
 }
-acc$struct <- snames
-remove(addr)
-remove(base)
-remove(page)
-remove(snames)
-remove(i)
-remove(cur)
-remove(OK)
 ```
 
 *Note:*
 
-If there are any warning/error from R before this text, R might have failed
+* If there are any warning/error from R before this text, R might have failed
 ... If it is the first run of TABARNAC it might be the dependencies
-installation, running "tabarnac -p expname" (where expname is the name of the
+installation, running `tabarnac -p expname` (where expname is the name of the
 application you've just traced) should remove them.
+* In case of troubles, removing any of the files
+  `expname.acc.csv`,`expname.structsStats.csv`,`expname.structsModified.csv`
+  will force tabarnac to parse the original trace file again.
+
 
 Topology
 --------
@@ -101,13 +116,13 @@ Topology
 Data structure usages
 ---------------------
 
-The following plots show the structures sizes in pages (usually one page =
+The following plot shows the structures sizes in pages (usually one page =
 4096 bytes) this information can give a hint on the importance of the
 different data structures and on the possible kind of optimization.
 
-*Note:*
+**Note:**
 
-+ If all the data structures are name AnonymousStruct#n, you should try to
++ If all the data structures are named `AnonymousStruct#n`, you should try to
   recompile your program with the "-g" option and re run TABARNAC.
 + Some structures might be ignored by TABARNAC
     + Because no access have been detected: this happens with structures
@@ -119,94 +134,102 @@ different data structures and on the possible kind of optimization.
   access. Such thread will be ignored except if the -i option is used.
 
 ```{r GeneratingStructData, echo=F}
-# Construct the new dataframe
-structsStats <- c()
-for(s in structs$name)
-{
-    sacc <- subset(acc, acc$struct==s)
-    sacc$struct <- NULL
-    sacc$addr <- NULL
-    sumR <- data.frame(colSums(subset(sacc,sacc$type=="R")[-1]))
-    sumW <- data.frame(colSums(subset(sacc,sacc$type=="W")[-1]))
-    if(sumR[nrow(sumR),] ==0  && sumW[nrow(sumW),] ==0)
+if(!InitDone){
+    # Construct the new dataframe
+    structsStats <- c()
+    for(s in structs$name)
     {
-        show(paste("structre",s,"ignored: no accesses detected"))
-        structs <- subset(structs, structs$name!=s)
-        acc <- subset(acc,acc$struct!=s)
-    }
-    else
-    {
-        for(i in 1:nrow(sumR))
+        sacc <- subset(acc, acc$struct==s)
+        sacc$struct <- NULL
+        sacc$addr <- NULL
+        sumR <- data.frame(colSums(subset(sacc,sacc$type=="R")[-1]))
+        sumW <- data.frame(colSums(subset(sacc,sacc$type=="W")[-1]))
+        if(sumR[nrow(sumR),] ==0  && sumW[nrow(sumW),] ==0)
         {
-            structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],"R",sumR[i,]))
-            structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],"W",sumW[i,]))
-        }
-    }
-}
-remove(sacc)
-remove(s)
-remove(i)
-
-structsStats <- data.frame(structsStats)
-colnames(structsStats) <- c("Struct", "Thread", "Type","NbAccess")
-structsStats <- transform(structsStats, NbAccess=as.numeric(as.character(NbAccess)))
-# Add the sums by threads
-sumR <- ddply(subset(structsStats, structsStats$Type=="R")[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
-sumR$Struct <- rep("total", nrow(sumR))
-sumR$Type <- rep("R", nrow(sumR))
-structsStats <- rbind(structsStats,sumR)
-remove(sumR)
-sumW <- ddply(subset(structsStats, structsStats$Type=="W")[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
-sumW$Struct <- rep("total", nrow(sumW))
-sumW$Type <- rep("W", nrow(sumW))
-structsStats <- rbind(structsStats,sumW)
-remove(sumW)
-# Ignore the Others struct (shared lib etc)
-structsStats <- subset(structsStats, structsStats$Struct!="Others")
-maxAcc <- sum(structsStats$NbAccess)
-for(s in unique(structsStats$Struct))
-{
-    sacc <- subset(structsStats, structsStats$Struct==s)
-    sacc <- subset(sacc, sacc$Thread=="total")
-    if(ignore)
-    {
-        if(sum(sacc$NbAccess) < maxAcc/minRatio)
-        {
-            show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
+            show(paste("structre",s,"ignored: no accesses detected"))
             structs <- subset(structs, structs$name!=s)
-            structsStats <- subset(structsStats, structsStats$Struct!=s)
             acc <- subset(acc,acc$struct!=s)
         }
-    }
-}
-remove(maxAcc)
-remove(s)
-remove(sacc)
-remove(minRatio)
-if(ignore)
-{
-    for(t in unique(structsStats$Thread))
-    {
-        if(t!="total" && t!="firstacc")
+        else
         {
-            if(sum(subset(structsStats, structsStats$Thread==t & structsStats$Struct!="total")$NbAccess)==0)
+            for(i in 1:nrow(sumR))
             {
-                show(paste("Thread",t,"ignored as it didn't used any of the remaining structures"))
-                structsStats <- subset(structsStats, structsStats$Thread!=t)
-                acc <- acc[,-match(t, names(acc))]
+                structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],"R",sumR[i,]))
+                structsStats <- rbind(structsStats,c(s,rownames(sumR)[i],"W",sumW[i,]))
             }
         }
     }
+    remove(sacc)
+    remove(s)
+    remove(i)
+
+    structsStats <- data.frame(structsStats)
+    colnames(structsStats) <- c("Struct", "Thread", "Type","NbAccess")
+    structsStats <- transform(structsStats, NbAccess=as.numeric(as.character(NbAccess)))
+    # Add the sums by threads
+    sumR <- ddply(subset(structsStats, structsStats$Type=="R")[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
+    sumR$Struct <- rep("total", nrow(sumR))
+    sumR$Type <- rep("R", nrow(sumR))
+    structsStats <- rbind(structsStats,sumR)
+    remove(sumR)
+    sumW <- ddply(subset(structsStats, structsStats$Type=="W")[,-1], .(Thread), summarise, NbAccess=sum(NbAccess))
+    sumW$Struct <- rep("total", nrow(sumW))
+    sumW$Type <- rep("W", nrow(sumW))
+    structsStats <- rbind(structsStats,sumW)
+    remove(sumW)
+    # Ignore the Others struct (shared lib etc)
+    structsStats <- subset(structsStats, structsStats$Struct!="Others")
+    maxAcc <- sum(structsStats$NbAccess)
+    for(s in unique(structsStats$Struct))
+    {
+        sacc <- subset(structsStats, structsStats$Struct==s)
+        sacc <- subset(sacc, sacc$Thread=="total")
+        if(ignore)
+        {
+            if(sum(sacc$NbAccess) < maxAcc/minRatio)
+            {
+                show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
+                structs <- subset(structs, structs$name!=s)
+                structsStats <- subset(structsStats, structsStats$Struct!=s)
+                acc <- subset(acc,acc$struct!=s)
+            }
+        }
+    }
+    remove(maxAcc)
+    remove(s)
+    remove(sacc)
+    remove(minRatio)
+    if(ignore)
+    {
+        for(t in unique(structsStats$Thread))
+        {
+            if(t!="total" && t!="firstacc")
+            {
+                if(sum(subset(structsStats, structsStats$Thread==t & structsStats$Struct!="total")$NbAccess)==0)
+                {
+                    show(paste("Thread",t,"ignored as it didn't used any of the remaining structures"))
+                    structsStats <- subset(structsStats, structsStats$Thread!=t)
+                    acc <- acc[,-match(t, names(acc))]
+                }
+            }
+        }
+    }
+    remove(t)
+    structs <- subset(structs, structs$name!="Others")
+    acc <- subset(acc,acc$struct!="Others")
+    write.csv2(structs,row.names=F, file=paste(base,".structsModif.csv",sep=""))
+    write.csv2(structsStats,row.names=F,file=paste(base,".structsStats.csv",sep=""))
+    write.csv2(acc,row.names=F,file=paste(base,".acc.csv",sep=""))
+    remove(base)
 }
-remove(t)
 nth  <- length(unique(structsStats$Thread))-2 # don't count the total and firstacc
 height <- 7
 width <- height*ratio
 pg_size <- 4096
+
 ```
+
 ```{r ShowStructSize, echo=F, fig.width=width, fig.height=height}
-structs <- subset(structs, structs$name!="Others")
-acc <- subset(acc,acc$struct!="Others")
 p <- ggplot(structs, aes(x=name,y=sz/4096, fill=name))
 p <- p + geom_bar(stat="identity")
 p <- p + xlab("Structure name") + ylab("Size (pages)")
@@ -232,8 +255,10 @@ remove(p)
 remove(structs)
 ```
 
-The following visualization shows the number of access and the ratio
-Read/Write for every data structures.
+The following visualization shows the number of accesses and the ratio
+Read/Write for every data structures. As the previous plot, it helps to
+understand the importance of each structure.
+
 
 ```{r TotalRWPlot, echo=F, fig.width=width, fig.height=height}
 df <- subset(structsStats, structsStats$Struct!="total")
@@ -252,8 +277,7 @@ if(bw)
     p <- p + scale_fill_grey(labels=c("Read", "Write"))
 }else
 {
-    p <- p + scale_fill_discrete(labels=c("Read", "Write"))
-    p <- p + scale_fill_manual(values=c("#ffeda0", "#f03b20"))
+    p <- p + scale_fill_manual(values=c("#ffeda0", "#f03b20"),labels=c("Read", "Write"))
 }
 p <- p + theme(legend.position="bottom")
 if(save)
@@ -265,7 +289,7 @@ remove(p)
 ```
 
 The next table tells which structures are not read or written by which thread,
-it can be uefull to determine if duplication is a possible solution.
+this information is useful to determine if duplication is a possible solution.
 
 ```{r UnusedStructs, echo=F}
 show(subset(df, df$NbAccess==0 && df$Thread!="firstacc"))
@@ -275,27 +299,52 @@ remove(df)
 Sharing inside structures
 -------------------------
 
-The following plots shows for each structure how much and where each thread
-access it. It provides several important informations for optimizations:
-+ If you can identify groups of threads working on the same part of a structure,
-  try to bind them on the same NUMA node, with the part of the structure they access.
-+ If the pattern is the same for all threads, you can:
-    1. Change your code to make threads work on different part of the
-      structures
-    2. Interleave the structure on the NUMA nodes (man numa_alloc_interleaved)
+The following plots shows for each structure how much each thread access each
+pages.The horizontal ̀`Avg` lines indicate the average access per pages and
+the vertical the average access per thread.
 
+*   If the memory is correctly accessed, some groups of threads (from 1 to the
+  maximum thread per NUMA node of the experimental machine) should appear. A
+  group of thread is a set of thread accessing (mostly) the same set of pages.
+  Moreover, the Average number of accesses should be more or less the same,
+  for every threads and for every pages.
+
+    If you can identify groups of threads working on the same part of a
+    structure, try to bind them on the same NUMA node, with the part of the
+    structure they access.
+*   If the average accesses per thread is imbalanced, it means that some
+  thread access to much the memory while other don't. This usually means that
+  the work is not correctly balanced between threads.
+*   If the average accesses per page is imbalanced, it means that the workload
+  is not not uniformly distributed over the structure. If it is not possible
+  to distribute the accesses differently, you should at least ensure that there not
+  hotspots (pages accessed a lot by every threads). If this is not possible,
+  interleaving the structure on the NUMA nodes should still improve the
+  performances.
 
 ```{r Distribution, echo=F, fig.width=width, fig.height=height}
 totalsep <- -1*ceil(nth/10)
 thread_formatter <- function(x)
 {
-    lab <- str_replace(x,as.character(totalsep),'Average')
+    lab <- str_replace(x,as.character(totalsep),'Avg')
 }
-my_breaks <- function(x)
+thread_breaks <- function(x)
 {
     breaks <- pretty(x)
     breaks <- c(totalsep,breaks[breaks>=0 & breaks < nth])
 }
+
+page_formatter <- function(x)
+{
+    lab <- str_replace(x,as.character(atot),'Avg')
+}
+
+page_breaks <- function(x)
+{
+    breaks <- pretty(x)
+    breaks <- c(breaks[breaks>=0 & breaks <= amax], atot)
+}
+
 plotname <- "Access distribution by thread for structure"
 # For each structures
 for(str in unique(acc$struct))
@@ -313,15 +362,24 @@ for(str in unique(acc$struct))
     remove(acct)
     ndf <- data.frame(cbind(rep(sacc$addr, ncol(sacc)-1),stack(sacc, select=-addr)))
     colnames(ndf) <- c("Addr", "Value","Thread")
+
     ndf <- subset(ndf, ndf$Thread!="firstacc")
     ndf$Thread <- as.numeric(as.character(str_replace(str_replace(ndf$Thread,'T',''),'total',as.character(totalsep))))
     ndf$Value <- ndf$Value/1000
     ndf$Value[ndf$Thread==totalsep] <- ndf$Value[ndf$Thread==totalsep] /nth
+    ndf$Addr  <-  ndf$Addr - sacc$addr[1]
     mid <- max(ndf$Value)/2
+
+    amax <- max(ndf$Addr)
+    atot <- ceil(1.1*amax)
+    for(t in unique(ndf$Thread)){
+        ndf <- rbind(ndf,c(atot,sum(subset(ndf, ndf$Thread==t)$Value)/amax,t))
+    }
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=Addr-sacc$addr[1], y=Thread,colour=Value) ) + geom_point() #geom_point(pch=3,cex=1)
+    p <- ggplot(ndf,aes(x=Addr, y=Thread,colour=Value) ) + geom_point() #geom_point(pch=3,cex=1)
     p <- p + xlab("Page number") + ylab("Thread Id")
-    p <- p +scale_y_continuous(label=thread_formatter, breaks=my_breaks)
+    p <- p +scale_y_continuous(label=thread_formatter, breaks=thread_breaks)
+    p <- p +scale_x_continuous(label=page_formatter, breaks=page_breaks)
     p <- p + theme_bw()
     if(titles)
     {
@@ -357,14 +415,14 @@ remove(str)
 First Touch
 -----------
 
-Most of the time when one run an application on a NUMA machine, data are
+By default, on recent operating systems, when an application runs on a NUMA machine, data are
 mapped according to the first touch policy aka near to the first thread which
 use it. The following plot show the repartition of the first touch over the
 structures.
 The first touch pattern should be similar to the distribution pattern of the
 previous plots. If the plot is a straight line, it means that one thread is
-initializating the whole structure which is generally a bad idead on NUMA
-machines, you should try to split the initialization such that each thread is
+initializing the whole structure which is generally a source of performance
+issues on NUMA machines, you should try to split the initialization such that each thread is
 responsible for a part or manually distribute the structure on the nodes.
 
 ```{r firsttouch, echo=F, fig.width=width, fig.height=height}
@@ -375,7 +433,7 @@ for(str in unique(acc$struct))
     sacc <- subset(acc, acc$struct==str)
     ndf <- sacc[,c("addr", "firstacc")]
     #   # Plot the distribution
-    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc, colour=firstacc, shape=firstacc) ) + geom_point(pch=3,cex=1)
+    p <- ggplot(ndf,aes(x=addr-sacc$addr[1], y=firstacc, shape=firstacc) ) + geom_point(pch=3,cex=1)
     p <- p + theme_bw()
     p <- p + ylim(0, nth-1)
     p <- p + theme(legend.position="bottom")
@@ -391,14 +449,6 @@ for(str in unique(acc$struct))
                        strip.background = element_rect(colour="#CCCCCC"))
 #                       panel.grid.minor = element_line(colour = "black", linetype="dashed", size = 0.1),
 #                       panel.grid.major = element_line(colour = "black", size = 0.1))
-        p <- p + scale_colour_gradient(limits=c(0,nth-1),name="Thread Id", low="grey70",
-                high="black")
-
-    }
-    else
-    {
-        p <- p + scale_colour_gradient(limits=c(0,nth-1),name="Thread Id",
-                                      low="#ffeea3", high="#ff0000")
     }
     show(p)
     if(save)
@@ -432,4 +482,10 @@ remove(ratio)
 remove(mid)
 remove(height)
 remove(width)
+remove(InitDone)
+remove(thread_breaks)
+remove(thread_formatter)
+remove(page_breaks)
+remove(page_formatter)
+remove(totalsep)
 ```

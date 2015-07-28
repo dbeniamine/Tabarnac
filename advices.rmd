@@ -10,17 +10,11 @@ memory access:
 
 1.  **Split the memory**
 
-    Different threads should work on different data (and not near if
-    possibile).  Indeed: two threads reading the same data can be a good
-    thing, as the first will put it in the cache and the second will be able
-    to use it directly.  Still, for NUMA machines, this is only true if the
-    threads are working on close NUMA nodes or on the same node. Moreover if
-    the threads writes the same data it becames more problematic as a write
-    will invalidate the data on private caches. Furthermore as caches
-    granularity is the cache line (usually 64 bytes) two threads writing two
-    different integers stored near in the same cache line ( for instance
-    array[0] and array[8] ) will results on false sharing: the cache will see
-    it as a write conflict.
+    If the memory is correctly accessed, some groups of threads (from 1 to the
+    maximum thread per NUMA node of the experimental machine) should appear. A
+    group of thread is a set of thread accessing (mostly) the same set of pages.
+    Moreover, the Average number of accesses should be more or less the same,
+    for every threads and for every pages.
 
     For NUMA machines, it is also important to think about the memory
     distribution over the node: thread working on the same data should be on
@@ -28,21 +22,21 @@ memory access:
     mapped near to the thread using them, moreover we should distribute the
     data (and the threads) over the node to avoid memory contention. If a part
     of the memory is used by every thread it should be either duplicated (in
-    the case of a relatively small structure, read only) or intereleaved
-    amoung the nodes for the same reasons.
+    the case of a relatively small structure, read only) or interleaved
+    among the nodes for the same reasons.
 
-    If some of your structures are user by (almost) every threads, you should
+    If some of your structures are used by (almost) every threads, you should
     obtain better performances by doing one of the following solutions:
 
     1. **Divide the structure**
 
        Modify your code to make threads works on small parts of the structure,
-       then pin threads working on close data to the same numa node (or use an
+       then pin threads working on close data to the same NUMA node (or use an
        automated tool to do so).
 
     2.  **Interleave**
 
-        You can distribute the pages of the structure amoung the NUMA nodes
+        You can distribute the pages of the structure among the NUMA nodes
         (interleave) to balance the memory bandwith.
 
     3.  **Duplicate**
@@ -64,7 +58,3 @@ memory access:
     Stack is designed for private data, shared data should be on the heap
     (dynamically allocated) or global. Remote stack access might be quite
     inefficient and hard to improve for automated tools.
-
-    The different visualization presented here allows you to undestand which
-    data structures are important how they are distributed amoung the threads,
-    and who is responsible for the first touch.

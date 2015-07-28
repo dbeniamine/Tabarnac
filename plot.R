@@ -22,7 +22,7 @@ insist  <-  function(name){
     name = substitute(name) 
     name = as.character(name)
 
-    if (!require(name, character.only = T, quiet=T)) {
+    if (!require(name, character.only = T, quiet=T,warn.conflicts=F)) {
         install.packages(name, verbose=T, repos="http://cran.rstudio.com/")
         Sys.sleep(2)
         library(name, character.only = T)
