@@ -371,7 +371,7 @@ for(str in unique(acc$struct))
     mid <- max(ndf$Value)/2
 
     amax <- max(ndf$Addr)
-    atot <- ceil(1.1*amax)
+    atot <- ceil(1.15*amax)
     for(t in unique(ndf$Thread)){
         ndf <- rbind(ndf,c(atot,sum(subset(ndf, ndf$Thread==t)$Value)/amax,t))
     }
