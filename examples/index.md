@@ -1,31 +1,4 @@
----
-title: TARBANAC Example
----
 
-<link rel="stylesheet" type="text/css" media="screen" href="../stylesheets/stylesheet.css">
-
-  <body>
-
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-          <a id="forkme_banner" href="https://github.com/dbeniamine/Tabarnac">View on GitHub</a>
-
-          <h1 id="project_title">Tabarnac</h1>
-          <h2 id="project_tagline">Tools for Analyzing the Behavior of Applications Running on NUMA
-ArChitecture</h2>
-
-            <section id="downloads">
-              <a class="zip_download_link" href="https://github.com/dbeniamine/Tabarnac/zipball/master">Download this project as a .zip file</a>
-              <a class="tar_download_link" href="https://github.com/dbeniamine/Tabarnac/tarball/master">Download this project as a tar.gz file</a>
-            </section>
-        </header>
-    </div>
-
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
- 
 
 This page presents *TABARNAC* visualziation through the example of the *IS*
 Benchmark form the [NAS Parallel Benchmarks (OpenMP)](http://www.nas.nasa.gov/publications/npb.html).
@@ -33,7 +6,7 @@ We choose this example as, according to the NAS website, *IS* has a
 random memory access pattern, while *TABARNAC* shows that the pattern is
 actually not that random.
 
-## Original behavior
+# Original behavior
 
 We traced *IS* in class B (memory usage of 0.25Gib), on a 64 threas NUMA
 machine. The full *TABARNAC* visualization is available
@@ -56,7 +29,7 @@ We can identify the source of this pattern in the *IS* source code. Indeed, all 
 except in one OpenMP parallel loop where they depend on the value of
 `key_buff2`.
 
-## Modified behavior
+# Modified behavior
 
 As we noticed that the values of `key_buff2`
 follow a Gaussian distribution, we can design a distribution of the threads that
@@ -68,12 +41,6 @@ For our distribution, we split
 the loop into two equal parts and distribute each part among the threads in a round-robin way.
 This modification can be done by simply changing one line of code, the
 `\#pragma omp` before the parallel loop.
-<!--This can be done by modifying the OpenMP pragma (line~\ref{lst:is-sched} in the original code), as shown-->
-<!--in Listing~\ref{lst:is-modif}.-->
-
-<!--\begin{lstlisting}[float=!h,caption=Optimization for *IS*., label=lst:is-modif]-->
-<!--#pragma omp for schedule(static,NUM_BUCKETS/(2*omp_get_num_threads()))-->
-<!--\end{lstlisting}-->
 
 The memory behavior obtained with this code modification is displayed
 [here](is.B-modif.html). By focusing again on the plots of section "Access
@@ -86,7 +53,7 @@ changed `key_buff2`'s accesses distribution. We can see that each
 thread uses mostly one part of the array and again the load balance is
 preserved.
 
-## Evalution
+# Evalution
 
 The main point of our code modification is to improve the affinity between
 thread and memory, therefore we need to pin each thread on a core to keep them
@@ -119,17 +86,3 @@ This example shows how analyzing an application's memory behavior can lead to
 significant execution time improvement on an already optimized application where automatic techniques can actually slow
 the application down.
 
-      </section>
-    </div>
-
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-        <p class="copyright">Tabarnac maintained by <a href="https://github.com/dbeniamine">dbeniamine</a></p>
-        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
-      </footer>
-    </div>
-
-    
-
-  </body>
