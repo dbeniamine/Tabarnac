@@ -1,3 +1,7 @@
+---
+title: TARBANAC Example
+---
+
 This page presents *TABARNAC* visualziation through the example of the *IS*
 Benchmark form the [NAS Parallel Benchmarks (OpenMP)](http://www.nas.nasa.gov/publications/npb.html).
 We choose this example as, according to the NAS website, *IS* has a
