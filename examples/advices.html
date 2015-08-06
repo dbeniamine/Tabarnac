@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>General Advices</title>
+
+<script type="text/javascript">
+window.onload = function() {
+  var imgs = document.getElementsByTagName('img'), i, img;
+  for (i = 0; i < imgs.length; i++) {
+    img = imgs[i];
+    // center an image if it is the only element of its parent
+    if (img.parentElement.childElementCount === 1)
+      img.parentElement.style.textAlign = 'center';
+  }
+};
+</script>
+
+
+
+
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 13px;
+}
+
+body {
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 20px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 {
+   font-size:2.2em;
+}
+
+h2 {
+   font-size:1.8em;
+}
+
+h3 {
+   font-size:1.4em;
+}
+
+h4 {
+   font-size:1.0em;
+}
+
+h5 {
+   font-size:0.9em;
+}
+
+h6 {
+   font-size:0.8em;
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre, img {
+  max-width: 100%;
+}
+pre {
+  overflow-x: auto;
+}
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code {
+  font-size: 92%;
+  border: 1px solid #ccc;
+}
+
+code[class] {
+  background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * {
+      background: transparent !important;
+      color: black !important;
+      filter:none !important;
+      -ms-filter: none !important;
+   }
+
+   body {
+      font-size:12pt;
+      max-width:100%;
+   }
+
+   a, a:visited {
+      text-decoration: underline;
+   }
+
+   hr {
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote {
+      padding-right: 1em;
+      page-break-inside: avoid;
+   }
+
+   tr, img {
+      page-break-inside: avoid;
+   }
+
+   img {
+      max-width: 100% !important;
+   }
+
+   @page :left {
+      margin: 15mm 20mm 15mm 10mm;
+   }
+
+   @page :right {
+      margin: 15mm 10mm 15mm 20mm;
+   }
+
+   p, h2, h3 {
+      orphans: 3; widows: 3;
+   }
+
+   h2, h3 {
+      page-break-after: avoid;
+   }
+}
+</style>
+
+
+
+</head>
+
+<body>
+<h2>General Advices</h2>
+
+<p>Using efficiently the memory in parallel application can be hard, especially
+for NUMA machines. This trace visualization is designed to help you identify
+your applications&#39; memory behavior and how to improve it.</p>
+
+<p>Before showing any actual visualizations here are a few reminders on efficient
+memory access:</p>
+
+<ol>
+<li><p><strong>Split the memory</strong></p>
+
+<p>If the memory is correctly accessed, some groups of threads (from 1 to the
+maximum thread per NUMA node of the experimental machine) should appear. A
+group of thread is a set of thread accessing (mostly) the same set of pages.
+Moreover, the Average number of accesses should be more or less the same,
+for every threads and for every pages.</p>
+
+<p>For NUMA machines, it is also important to think about the memory
+distribution over the node: thread working on the same data should be on
+the same node to avoid remote accesses. We should ensure that data are
+mapped near to the thread using them, moreover we should distribute the
+data (and the threads) over the node to avoid memory contention. If a part
+of the memory is used by every thread it should be either duplicated (in
+the case of a relatively small structure, read only) or interleaved
+among the nodes for the same reasons.</p>
+
+<p>If some of your structures are used by (almost) every threads, you should
+obtain better performances by doing one of the following solutions:</p>
+
+<ol>
+<li><p><strong>Divide the structure</strong></p>
+
+<p>Modify your code to make threads works on small parts of the structure,
+then pin threads working on close data to the same NUMA node (or use an
+automated tool to do so).</p></li>
+<li><p><strong>Interleave</strong></p>
+
+<p>You can distribute the pages of the structure among the NUMA nodes
+(interleave) to balance the memory bandwith.</p></li>
+<li><p><strong>Duplicate</strong></p>
+
+<p>If the structure is only read and the structure size is small enough,
+each thread can work on local copy.</p></li>
+</ol></li>
+<li><p><strong>Mapping policy</strong></p>
+
+<p>By default, all recent operating systems maps memory pages close to the
+first thread accessing them, it is called first touch. Therefore either
+the first touch should be done be the thread actually using the data, or
+some mapping should be made (manually or via an external / automated
+tool).</p></li>
+<li><p><strong>Beware of the stack</strong></p>
+
+<p>Stack is designed for private data, shared data should be on the heap
+(dynamically allocated) or global. Remote stack access might be quite
+inefficient and hard to improve for automated tools.</p></li>
+</ol>
+
+</body>
+
+</html>
