@@ -18,7 +18,7 @@
         <header class="inner">
           <a id="forkme_banner" href="https://github.com/dbeniamine/Tabarnac">View on GitHub</a>
 
-          <a id="project_title" class="anchor" href="#project_title" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tabarnac</h1>
+<h1>          <a id="project_title" class="anchor" href="#project_title" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tabarnac</h1>
           <h2 id="project_tagline">Tools for Analyzing the Behavior of Applications Running on NUMA
 ArChitecture</h2>
 
@@ -33,18 +33,18 @@ ArChitecture</h2>
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
         <h1>
-<a id="what-is-tabarnac" class="anchor" href="#what-is-tabarnac" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tabarnac example</h1>
+<h1><a id="what-is-tabarnac" class="anchor" href="#what-is-tabarnac" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tabarnac example</h1>
 
 
 <p>This page presents <em>TABARNAC</em> visualization through the example of the <em>IS</em> Benchmark form the <a href="http://www.nas.nasa.gov/publications/npb.html">NAS Parallel Benchmarks (OpenMP)</a>. We choose this example as, according to the NAS website, <em>IS</em> has a random memory access pattern, while <em>TABARNAC</em> shows that the pattern is actually not that random.</p>
-<a id="original-behavior" class="anchor" href="#original-behavior" aria-hidden="true"><span class="octicon octicon-link"></span></a>Original behavior</h1>
+<h1><a id="original-behavior" class="anchor" href="#original-behavior" aria-hidden="true"><span class="octicon octicon-link"></span></a>Original behavior</h1>
 <p>We traced <em>IS</em> in class B (memory usage of 0.25Gib), on a 64 threas NUMA machine. The full <em>TABARNAC</em> visualization is available <a href="is.B-original.html">here</a>.</p>
 <p>For this example we focus on the plots of the section &quot;Access distribution&quot;, e can see that each structure has a different access pattern: <code>key_array</code>'s access distribution shows that each thread works on a different part of the structure, which permits automated tools perform an efficient data/thread mapping on it. On the other hand, <code>key_buff2</code> is completely shared by all threads. <code>key_buff1</code>'s access distribution (Figure~) is the most interesting one. We can see that almost all accesses occur in pages in the middle of the structure (from page 500 to 1500), and those pages are shared by all threads. This means that the number of access per page for each thread follows a Gaussian distribution centered in the middle of the structure.</p>
 <p>We can identify the source of this pattern in the <em>IS</em> source code. Indeed, all the accesses to <code>key_buff1</code> are linear, except in one OpenMP parallel loop where they depend on the value of <code>key_buff2</code>.</p>
-<a id="modified-behavior" class="anchor" href="#modified-behavior" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modified behavior</h1>
+<h1><a id="modified-behavior" class="anchor" href="#modified-behavior" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modified behavior</h1>
 <p>As we noticed that the values of <code>key_buff2</code> follow a Gaussian distribution, we can design a distribution of the threads that provides both a good load balancing and locality of data. By default, OpenMP threads are scheduled dynamically to avoid unbalanced distribution of work, but the developers also propose a cyclic distribution of the threads over the loop. For our distribution, we split the loop into two equal parts and distribute each part among the threads in a round-robin way. This modification can be done by simply changing one line of code, the <code>\#pragma omp</code> before the parallel loop.</p>
 <p>The memory behavior obtained with this code modification is displayed <a href="is.B-modif.html">here</a>. By focusing again on the plots of section &quot;Access distribution&quot;, we can see that now each thread accesses a different part of <code>key_buff1</code>. Furthermore, if most of the accesses still occur in the middle of the structure, the average number of access across the structure is the same for all threads, which means that our distribution preserves the good load balancing. Our modification has also changed <code>key_buff2</code>'s accesses distribution. We can see that each thread uses mostly one part of the array and again the load balance is preserved.</p>
-<a id="evalution" class="anchor" href="#evalution" aria-hidden="true"><span class="octicon octicon-link"></span></a>Evalution</h1>
+<h1><a id="evalution" class="anchor" href="#evalution" aria-hidden="true"><span class="octicon octicon-link"></span></a>Evalution</h1>
 <p>The main point of our code modification is to improve the affinity between thread and memory, therefore we need to pin each thread on a core to keep them close to the data they access. To perform the thread mapping, we use the <code>GOMP_CPU_AFFINITY</code> environment variable. <em>TABARNAC</em> also shows us that the first touch is always done by the thread actually using the data for IS, therefore we do not need to explicitly map the data to the NUMA nodes.</p>
 <p>We compare the execution time of <em>IS</em> (class <em>D</em>, memory prin 33.5Gib) for the three scheduling methods, <em>Dynamic</em>, <em>Cyclic</em> with a step of 1 and <em>TABARNAC</em>: cyclic with the proposed distribution. For the two first methods, we compare the execution time on the base operating system, the interleave policy and with NUMA balancing enabled. As we map threads manually, interleave and NUMA Balancing are not relevant with our modifications and are therefore not evaluated.</p>
 <div class="figure">
