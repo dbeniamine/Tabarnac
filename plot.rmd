@@ -296,8 +296,8 @@ show(subset(df, df$NbAccess==0 && df$Thread!="firstacc"))
 remove(df)
 ```
 
-Sharing inside structures
--------------------------
+Access distribution
+-------------------
 
 The following plots shows for each structure how much each thread access each
 pages.The horizontal ̀`Avg` lines indicate the average access per pages and
