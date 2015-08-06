@@ -4,15 +4,36 @@ title: TARBANAC Example
 
 <link rel="stylesheet" type="text/css" media="screen" href="../stylesheets/stylesheet.css">
 
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/dbeniamine/Tabarnac">View on GitHub</a>
+
+          <h1 id="project_title">Tabarnac</h1>
+          <h2 id="project_tagline">Tools for Analyzing the Behavior of Applications Running on NUMA
+ArChitecture</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/dbeniamine/Tabarnac/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/dbeniamine/Tabarnac/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+ 
+
 This page presents *TABARNAC* visualziation through the example of the *IS*
 Benchmark form the [NAS Parallel Benchmarks (OpenMP)](http://www.nas.nasa.gov/publications/npb.html).
 We choose this example as, according to the NAS website, *IS* has a
 random memory access pattern, while *TABARNAC* shows that the pattern is
 actually not that random.
 
-<!--*IS* was executed with input class *D* for the performance
-evaluation, resulting in a memory usage of 33.5Gib, and class *B* for
-the analysis, with a memory usage of 0.25Gib.-->
+## Original behavior
 
 We traced *IS* in class B (memory usage of 0.25Gib), on a 64 threas NUMA
 machine. The full *TABARNAC* visualization is available
@@ -34,6 +55,8 @@ distribution centered in the middle of the structure.
 We can identify the source of this pattern in the *IS* source code. Indeed, all the accesses to `key_buff1` are linear,
 except in one OpenMP parallel loop where they depend on the value of
 `key_buff2`.
+
+## Modified behavior
 
 As we noticed that the values of `key_buff2`
 follow a Gaussian distribution, we can design a distribution of the threads that
@@ -63,13 +86,15 @@ changed `key_buff2`'s accesses distribution. We can see that each
 thread uses mostly one part of the array and again the load balance is
 preserved.
 
+## Evalution
+
 The main point of our code modification is to improve the affinity between
 thread and memory, therefore we need to pin each thread on a core to keep them
 close to the data they access. To perform the thread mapping, we use the `GOMP_CPU_AFFINITY` environment variable.
 *TABARNAC* also shows us that the first touch is always done by the thread actually using
 the data for IS, therefore we do not need to explicitly map the data to the NUMA nodes.
 
-We compare the execution time of *IS* (class *D*) for the three scheduling
+We compare the execution time of *IS* (class *D*, memory prin 33.5Gib) for the three scheduling
 methods, *Dynamic*, *Cyclic* with a step of 1 and *TABARNAC*:
 cyclic with the proposed distribution. For the two first methods, we compare the
 execution time on the base operating system, the interleave policy and with
@@ -93,3 +118,18 @@ modification.
 This example shows how analyzing an application's memory behavior can lead to
 significant execution time improvement on an already optimized application where automatic techniques can actually slow
 the application down.
+
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Tabarnac maintained by <a href="https://github.com/dbeniamine">dbeniamine</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
