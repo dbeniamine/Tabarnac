@@ -36,6 +36,8 @@ usage()
     echo "  -t            Disable titles in figures"
     echo "  -S scale      Set the scale for saved figures implies -s"
     echo "  -R ratio      set plots_width=ratio*plot_height, default=1"
+    echo "  -C            Remove cache files (exp.structStats.csv
+                          exp.structModif.csv and exp.acc.csv"
 }
 
 run=true
@@ -46,7 +48,8 @@ bw=F
 save=F
 ignore=TRUE
 scale=1
-while getopts "trbshp:S:iR:d:" opt; do
+rmCache=false
+while getopts "trbshp:S:iR:d:C" opt; do
     case $opt in
         i)
             ignore=FALSE
@@ -81,6 +84,9 @@ while getopts "trbshp:S:iR:d:" opt; do
         d)
             export PIN_HOME=$OPTARG
             echo "export PIN_HOME=$OPTARG"
+            ;;
+        C)
+            rmCache=true
             ;;
         \?)
             echo "Invalid option : -$OPTARG" >&2
@@ -126,6 +132,12 @@ fi
 
 if $plot
 then
+    if $rmCache
+    then
+        rm -v ./$PROG.structsModif.csv
+        rm -v ./$PROG.structsStats.csv
+        rm -v ./$PROG.acc.csv
+    fi
     dir=$(pwd)
     cd $(dirname $0)
     mkdir -p ./figure/
