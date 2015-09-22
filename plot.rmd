@@ -15,6 +15,7 @@ insist(stringr)
 insist(data.table)
 insist(matlab)
 minRatio <- 10000 # Structs responsible of less than 1/minRation access will be ignored
+PAGE_SIZE <-  2^(12)
 # The palette with grey:
 base=paste(path,"/",name, sep="")
 if(file.exists(paste(base,".structsModif.csv",sep="")) &&
@@ -55,10 +56,11 @@ if(!InitDone){
     i <- 2
     cur <- i
     #cpt <- 1
-    # Here we know that structs and acc are sorted by adresse, which ease the search
+    acc <- acc[with(acc,order(addr)),]
+    # Here we know that structs and acc are sorted by adress, which ease the search
     for(page in unique(acc$addr))
     {
-        addr <- (2^12)*page
+        addr <- PAGE_SIZE*page
         OK <- F
         cur <- 1
         while(!OK && i<=nrow(structs))
@@ -101,11 +103,14 @@ if(!InitDone){
 
 * If there are any warning/error from R before this text, R might have failed
 ... If it is the first run of TABARNAC it might be the dependencies
-installation, running `tabarnac -p expname` (where expname is the name of the
+installation, running `tabarnac -p expname` (where `expname` is the name of the
 application you've just traced) should remove them.
-* In case of troubles, removing any of the files
-  `expname.acc.csv`,`expname.structsStats.csv`,`expname.structsModified.csv`
-  will force tabarnac to parse the original trace file again.
++ Tabarnac creates several cache files during the visualization generation, if
+  it does not seem to regenerate correctly a visualization when you ask, run
+  `tabarnac -C -p expname` to regenerate the visualization without using the
+  cache files.
+  You can also remove them manually:
+  `rm expname.acc.csv expname.structsStats.csv expname.structsModified.csv`
 
 
 Topology
@@ -124,12 +129,13 @@ different data structures and on the possible kind of optimization.
 
 + If all the data structures are named `AnonymousStruct#n`, you should try to
   recompile your program with the "-g" option and re run TABARNAC.
-+ Some structures might be ignored by TABARNAC
-    + Because no access have been detected: this happens with structures
++ Some structures might be ignored by TABARNAC because of the following
+  reasons:
+    1. No access have been detected: this happens with structures
       smaller than one page.
-    + Because the structure is not used enough: to keep the figures clear, we
+    2. The structure is not used enough: to keep the figures clear, we
       automatically remove the structures responsible for less than 1 one
-      access over 10000. This can be cancelled by running tabarnac -i -p expname
+      access over 10000. This can be cancelled by running `tabarnac -C -i -p` expname
 + After ignoring these structures, some threads might not be responsible of any
   access. Such thread will be ignored except if the -i option is used.
 
@@ -213,8 +219,8 @@ if(!InitDone){
                 }
             }
         }
+        remove(t)
     }
-    remove(t)
     structs <- subset(structs, structs$name!="Others")
     acc <- subset(acc,acc$struct!="Others")
     write.csv2(structs,row.names=F, file=paste(base,".structsModif.csv",sep=""))
