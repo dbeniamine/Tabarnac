@@ -49,7 +49,8 @@ save=F
 ignore=TRUE
 scale=1
 rmCache=false
-while getopts "trbshp:S:iR:d:C" opt; do
+gdb=""
+while getopts "trbshp:S:iR:d:Cg" opt; do
     case $opt in
         i)
             ignore=FALSE
@@ -88,6 +89,9 @@ while getopts "trbshp:S:iR:d:C" opt; do
         C)
             rmCache=true
             ;;
+        g)
+            gdb="-pause_tool 10"
+            ;;
         \?)
             echo "Invalid option : -$OPTARG" >&2
             usage
@@ -119,7 +123,7 @@ then
     echo -e "\n\n## running pin: $PROGARGS"
 
     set -x
-    time -p pin -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so -- $PROGARGS
+    time -p pin $gdb -xyzzy -enable_vsm 0 -t $DIR/obj-*/*.so -- $PROGARGS
     set +x
 
     # sort output page csv's according to page address

@@ -58,7 +58,7 @@ endif
 include $(CONFIG_ROOT)/makefile.config
 
 TOOL_CXXFLAGS += -Wall -g -std=c++0x -Wno-error
-TOOL_LDFLAGS += -Wl,-rpath,$(PIN_HOME)/intel64/runtime -lelf
+TOOL_LDFLAGS += -Wl,-rpath,$(PIN_HOME)/intel64/runtime -lelf -lnuma
 
 
 TEST_TOOL_ROOTS := tabarnac

@@ -40,6 +40,8 @@
 #include <fcntl.h>
 
 #include <errno.h>
+#include <numa.h>
+#include <numaif.h>
 
 #include <libelf/libelf.h>
 #include <libelf/gelf.h>
@@ -51,6 +53,7 @@
 #define REAL_TID(tid) ((tid)>=2 ? (tid)-1 : (tid))
 #define ACC_T_READ 0
 #define ACC_T_WRITE 1
+#define PAGE_MAPPING_CHECK_THRESHOLD 1000 // Check page mapping every 1000 acces by one thread to one page
 
 char TYPE_NAME[2]={'R','W'};
 
@@ -74,6 +77,10 @@ int num_threads = 0;
 
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> pagemap[2];
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> ftmap;
+array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> remotemap;
+array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> pagenode;
+
+int *CPU_NODE=NULL;
 
 map<UINT32, UINT32> pidmap; // pid -> tid
 
@@ -106,13 +113,34 @@ UINT64 get_tsc()
 #endif
 }
 
+static inline void update_pagenode(ADDRINT addr, UINT64 page, THREADID tid)
+{
+    int status;
+    move_pages(0/*Self memory*/,1,(void **)&addr,NULL,&status,0);
+    pagenode[tid][page]=status;
+}
+
 VOID do_numa(ADDRINT addr, THREADID tid, ADDRINT type)
 {
     UINT64 page = addr >> PAGESIZE;
     tid=REAL_TID(tid);
+    UINT64 node=CPU_NODE[sched_getcpu()];
 
     if (pagemap[type][tid][page]++ == 0 && pagemap[(type+1)%2][tid][page]==0)
-        ftmap[tid][page] = get_tsc();
+    {
+        ftmap[tid][page] = tid;
+        update_pagenode(addr,page,tid);
+    }
+    else
+    {
+        if(pagemap[type][tid][page]%PAGE_MAPPING_CHECK_THRESHOLD == 0)
+            update_pagenode(addr,page,tid);
+    }
+
+
+    // Count remote access
+    if(pagenode[tid][page]!=node)
+        ++remotemap[tid][page];
 }
 
 VOID trace_memory_page(INS ins, VOID *v)
@@ -173,6 +201,7 @@ void print_numa()
 
     unordered_map<UINT64, array<UINT64, MAXTHREADS+1>> finalmap[2];
     unordered_map<UINT64, pair<UINT64, UINT32>> finalft;
+    unordered_map<UINT64, array<UINT64, MAXTHREADS+1>> finalremotemap;
 
     int i = 0;
 
@@ -228,6 +257,41 @@ void print_numa()
     }
 
     f.close();
+
+    //Remote access map
+    if (INTERVAL)
+        sprintf(fname, "%s.%06ld.remote.csv", img_name.c_str(), n++);
+    else
+        sprintf(fname, "%s.full.remote.csv", img_name.c_str());
+
+    cout << ">>> " << fname << endl;
+
+
+    f.open(fname);
+    f << "addr";
+    for (int i = 0; i<num_threads; i++)
+        f << ",T" << i;
+    f << "\n";
+
+    // Reorder map
+    for (int tid = 0; tid<num_threads; tid++) {
+        for(auto it: remotemap[tid])
+        {
+            finalremotemap[it.first][tid]=remotemap[tid][it.first];
+        }
+    }
+    // do print
+    for(auto it: finalremotemap)
+    {
+        f << it.first;
+        for (int tid = 0; tid<num_threads; tid++)
+            f << "," << finalremotemap[it.first][tid];
+        f << "\n";
+    }
+
+    f.close();
+
+
 }
 
 
@@ -385,6 +449,7 @@ VOID Fini(INT32 code, VOID *v)
 {
     print_numa();
     fstructStream.close();
+    delete CPU_NODE;
 
     cout << endl << "MAXTHREADS: " << MAXTHREADS << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
 }
@@ -405,6 +470,10 @@ int main(int argc, char *argv[])
         cerr << "ERROR internal thread " << t << endl;
 
     cout << endl << "MAXTHREADS: " << MAXTHREADS << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
+
+    CPU_NODE=new int[numa_num_configured_cpus()];
+    for(int cpu=0; cpu< numa_num_configured_cpus();++cpu)
+        CPU_NODE[cpu]=numa_node_of_cpu(cpu);
 
     INS_AddInstrumentFunction(trace_memory_page, 0);
 
