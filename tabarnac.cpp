@@ -362,14 +362,9 @@ string get_struct_name(string str, int ln, string fname, int hops)
     while(ret.back()==' ')
         ret.resize(ret.size()-1);
     // Take the last word
-    ret=ret.substr(ret.find_last_of(string(" )*"))+1);
+    ret=ret.substr(ret.find_last_of(string(" )*"))+1)+string(":")+fname+
+        string(":")+str;
     // Our search have failed, it will be an anonymous malloc
-    if(ret.compare("")==0)
-    {
-        cerr << "Unable to find a suitable alloc name for file  "
-            << fname << " l: " << ln << endl;
-        return string("AnonymousStruct");
-    }
     return ret;
 }
 
@@ -377,6 +372,7 @@ VOID PREMALLOC(ADDRINT retip, THREADID tid, ADDRINT sz)
 {
     int col, ln;
     int id=REAL_TID(tid);
+    static int warned=0;
     string fname;
     if( (unsigned int) sz >= REAL_PAGESIZE)
     {
@@ -389,9 +385,13 @@ VOID PREMALLOC(ADDRINT retip, THREADID tid, ADDRINT sz)
         string line;
         if(!fstr)
         {
-            cerr << "Can't open file '" << fname << "', malloc will be anonymous"<< endl;
-            cerr << "Have you compiled your program with '-g' flag ?" <<endl;
-            Allocs[id].sym="AnonymousStruct";
+            if(!warned || fname.compare("")!=0)
+            {
+                cerr << "Can't open file '" << fname << "', malloc will be anonymous"<< endl;
+                cerr << "Have you compiled your program with '-g' flag ?" <<endl;
+                warned=1;
+            }
+            Allocs[id].sym=fname.compare("")==0?"AnonymousStruct":fname+string(":")+line;
         }
         else
         {
