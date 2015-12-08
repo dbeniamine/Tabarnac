@@ -32,7 +32,7 @@ to automatically install all the R libraries required.
 ## Installation
 
 * Install the library gelf, `lstopo` and R (on Debian
- `apt-get install libelfg0  hwloc r-base`, the two first are required for
+ `apt-get install libelfg0-dev  hwloc r-base`, the two first are required for
  instrumentation only and last is for visualization only).
 * Install [Pin](https://software.intel.com/en-us/articles/pintool).
 * Download Tabarnac
