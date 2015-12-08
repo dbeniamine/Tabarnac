@@ -136,6 +136,8 @@ different data structures and on the possible kind of optimization.
     2. The structure is not used enough: to keep the figures clear, we
       automatically remove the structures responsible for less than 1 one
       access over 10000. This can be cancelled by running `tabarnac -C -i -p` expname
+    3. The total number of access on the structure is smaller than the minimum
+       threshold given to TABARNAC with `-a threshold`
 + After ignoring these structures, some threads might not be responsible of any
   access. Such thread will be ignored except if the -i option is used.
 
@@ -152,7 +154,10 @@ if(!InitDone){
         sumW <- data.frame(colSums(subset(sacc,sacc$type=="W")[-1]))
         if(sumR[nrow(sumR),] ==0  && sumW[nrow(sumW),] ==0)
         {
-            show(paste("structre",s,"ignored: no accesses detected"))
+            if(warn)
+            {
+                show(paste("structure",s,"ignored: no accesses detected"))
+            }
             structs <- subset(structs, structs$name!=s)
             acc <- subset(acc,acc$struct!=s)
         }
@@ -192,9 +197,13 @@ if(!InitDone){
         sacc <- subset(sacc, sacc$Thread=="total")
         if(ignore)
         {
-            if(sum(sacc$NbAccess) < maxAcc/minRatio)
+            Sum <- sum(sacc$NbAccess)
+            if(Sum < maxAcc/minRatio || Sum < minAcc)
             {
-                show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
+                if(warn)
+                {
+                    show(paste("structre",s,"ignored because not used enough: only ",sum(sacc$NbAccess), "accesses"))
+                }
                 structs <- subset(structs, structs$name!=s)
                 structsStats <- subset(structsStats, structsStats$Struct!=s)
                 acc <- subset(acc,acc$struct!=s)
@@ -203,8 +212,10 @@ if(!InitDone){
     }
     remove(maxAcc)
     remove(s)
+    remove(Sum)
     remove(sacc)
     remove(minRatio)
+    remove(minAcc)
     if(ignore)
     {
         for(t in unique(structsStats$Thread))
@@ -213,7 +224,10 @@ if(!InitDone){
             {
                 if(sum(subset(structsStats, structsStats$Thread==t & structsStats$Struct!="total")$NbAccess)==0)
                 {
-                    show(paste("Thread",t,"ignored as it didn't used any of the remaining structures"))
+                    if(warn)
+                    {
+                        show(paste("Thread",t,"ignored as it didn't used any of the remaining structures"))
+                    }
                     structsStats <- subset(structsStats, structsStats$Thread!=t)
                     acc <- acc[,-match(t, names(acc))]
                 }

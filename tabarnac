@@ -38,6 +38,8 @@ usage()
     echo "  -R ratio      set plots_width=ratio*plot_height, default=1"
     echo "  -C            Remove cache files (exp.structStats.csv
                           exp.structModif.csv and exp.acc.csv"
+    echo "  -a limit      Ignore data structures with less then limit accesses"
+    echo "  -W            Do not show warnings."
 }
 
 run=true
@@ -48,9 +50,11 @@ bw=F
 save=F
 ignore=TRUE
 scale=1
+min_acc=0
+warn=F
 rmCache=false
 gdb=""
-while getopts "trbshp:S:iR:d:Cg" opt; do
+while getopts "trbshp:S:iR:d:Cga:W" opt; do
     case $opt in
         i)
             ignore=FALSE
@@ -91,6 +95,12 @@ while getopts "trbshp:S:iR:d:Cg" opt; do
             ;;
         g)
             gdb="-pause_tool 10"
+            ;;
+        a)
+            min_acc="$OPTARG"
+            ;;
+        W)
+            warn=F
             ;;
         \?)
             echo "Invalid option : -$OPTARG" >&2
@@ -148,7 +158,8 @@ then
     mv $dir/figure/topo.png figure/
     mv $dir/topo.png figure/
 
-    Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore $ratio
+    Rscript plot.R $dir $PROG $save $bw $titles $scale $ignore $ratio \
+        $min_acc $warn
     # Clean and copi figures
     rm -rf $dir/figure plot.md
     mv ./figure $dir/

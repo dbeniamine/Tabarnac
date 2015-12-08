@@ -40,6 +40,8 @@ titles <- args[5]
 imgsc  <- as.numeric(as.character(args[6]))
 ignore <- args[7]
 ratio  <- as.numeric(as.character(args[8]))
+minAcc  <- as.numeric(as.character(args[9]))
+warn  <- args[10]
 output <- paste(path, '/', name, '-plots.html', sep='')
 output1 <- paste(path, '/advices.html', sep='')
 # Do the work
