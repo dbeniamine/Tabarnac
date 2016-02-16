@@ -59,6 +59,7 @@ char TYPE_NAME[2]={'R','W'};
 
 const int MAXTHREADS = 1024;
 int PAGESIZE;
+int numanodes=1;
 unsigned int REAL_PAGESIZE;
 
 KNOB<int> INTERVAL(KNOB_MODE_WRITEONCE, "pintool", "i", "0", "print interval (ms) (0=disable)");
@@ -77,8 +78,9 @@ int num_threads = 0;
 
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> pagemap[2];
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> ftmap;
-array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> remotemap;
+vector<unordered_map<UINT64, UINT64>> remotemap(numa_num_configured_nodes());
 array<unordered_map<UINT64, UINT64>, MAXTHREADS+1> pagenode;
+PIN_LOCK **REMOTE_LOCKS;
 
 int *CPU_NODE=NULL;
 
@@ -140,7 +142,11 @@ VOID do_numa(ADDRINT addr, THREADID tid, ADDRINT type)
 
     // Count remote access
     if(pagenode[tid][page]!=node)
-        ++remotemap[tid][page];
+    {
+        PIN_GetLock(REMOTE_LOCKS[node], tid);
+        ++remotemap[node][page]; // Possible race here
+        PIN_ReleaseLock(REMOTE_LOCKS[node]);
+    }
 }
 
 VOID trace_memory_page(INS ins, VOID *v)
@@ -269,23 +275,23 @@ void print_numa()
 
     f.open(fname);
     f << "addr";
-    for (int i = 0; i<num_threads; i++)
-        f << ",T" << i;
+    for (int i = 0; i<numanodes; i++)
+        f << ",N" << i;
     f << "\n";
 
     // Reorder map
-    for (int tid = 0; tid<num_threads; tid++) {
-        for(auto it: remotemap[tid])
+    for (int node = 0; node<numanodes; node++) {
+        for(auto it: remotemap[node])
         {
-            finalremotemap[it.first][tid]=remotemap[tid][it.first];
+            finalremotemap[it.first][node]=remotemap[node][it.first];
         }
     }
     // do print
     for(auto it: finalremotemap)
     {
         f << it.first;
-        for (int tid = 0; tid<num_threads; tid++)
-            f << "," << finalremotemap[it.first][tid];
+        for (int node = 0; node<numanodes; node++)
+            f << "," << finalremotemap[it.first][node];
         f << "\n";
     }
 
@@ -470,7 +476,13 @@ int main(int argc, char *argv[])
         cerr << "ERROR internal thread " << t << endl;
 
     cout << endl << "MAXTHREADS: " << MAXTHREADS << " PAGESIZE: " << PAGESIZE << " INTERVAL: " << INTERVAL << endl << endl;
-
+    numanodes=numa_num_configured_nodes();
+    REMOTE_LOCKS=new PIN_LOCK *[numanodes];
+    for(int node=0; node< numanodes;++node)
+    {
+        REMOTE_LOCKS[node]=new PIN_LOCK;
+        PIN_InitLock(REMOTE_LOCKS[node]);
+    }
     CPU_NODE=new int[numa_num_configured_cpus()];
     for(int cpu=0; cpu< numa_num_configured_cpus();++cpu)
         CPU_NODE[cpu]=numa_node_of_cpu(cpu);

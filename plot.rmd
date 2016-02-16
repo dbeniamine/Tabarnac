@@ -16,6 +16,7 @@ insist(data.table)
 insist(matlab)
 minRatio <- 10000 # Structs responsible of less than 1/minRation access will be ignored
 PAGE_SIZE <-  2^(12)
+use_remote <- F
 # The palette with grey:
 base=paste(path,"/",name, sep="")
 if(file.exists(paste(base,".structsModif.csv",sep="")) &&
@@ -36,6 +37,10 @@ if(file.exists(paste(base,".structsModif.csv",sep="")) &&
     remove(acct)
     acc$total  <- rowSums(acc[,-1:-2])
     stacks<-data.frame(read.csv2(file=paste(base,".stackmap.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+    if(file.exists(paste(base,".remotes.csv",sep=""))){
+        use_remote <- T
+        acc<-data.frame(read.csv2(file=paste(base,".remotes.csv",sep=""),sep=',',dec='.',stringsAsFactors=FALSE))
+    }
 }
 ```
 ```{r RetrievingPageStructMapping, echo=F}
@@ -90,6 +95,11 @@ if(!InitDone){
         snames <- c(snames,structs$name[cur],structs$name[cur])
     }
     acc$struct <- snames
+    if(use_remote){
+        remote <- remote[with(acc,order(addr)),]
+        remote$struct <- snames
+
+    }
     remove(addr)
     remove(page)
     remove(snames)
@@ -483,6 +493,13 @@ remove(sacc)
 remove(str)
 
 ```
+
+
+Remote Accesses
+---------------
+
+**TODO**
+
 
 ```{r Cleaning, echo=F}
 remove(save)
