@@ -1,3 +1,5 @@
+** This repository is only a mirror, all development happens at [gitlab](https://gitlab.com/dbeniamine/Tabarnac) **
+
 # Tabarnac
 
 ## What is tabarnac
